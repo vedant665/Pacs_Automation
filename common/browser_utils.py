@@ -1,0 +1,107 @@
+"""
+browser_utils.py
+----------------
+Browser setup, configuration, and management utilities.
+Uses Selenium's built-in SeleniumManager (NO webdriver-manager needed).
+"""
+
+import os
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.edge.options import Options as EdgeOptions
+
+from config import BROWSER, HEADLESS, PAGE_LOAD_TIMEOUT, IMPLICIT_WAIT
+from common.logger import log
+
+
+def get_chrome_driver():
+    """Create and configure Google Chrome WebDriver."""
+    log.info("Setting up Chrome browser...")
+
+    options = ChromeOptions()
+
+    # Headless mode
+    if HEADLESS:
+        options.add_argument("--headless=new")
+        log.info("Headless mode: ON")
+
+    # Common options for stability
+    options.add_argument("--start-maximized")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--disable-notifications")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
+    # Handle "Chrome is being controlled by automated test software" banner
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
+
+    # Selenium 4.41+ built-in SeleniumManager — no webdriver-manager needed
+    driver = webdriver.Chrome(options=options)
+
+    # Set timeouts
+    driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
+    driver.implicitly_wait(IMPLICIT_WAIT)
+
+    log.info("Chrome browser launched successfully")
+    return driver
+
+
+def get_edge_driver():
+    """Create and configure Microsoft Edge WebDriver."""
+    log.info("Setting up Edge browser...")
+
+    options = EdgeOptions()
+
+    if HEADLESS:
+        options.add_argument("--headless=new")
+        log.info("Headless mode: ON")
+
+    options.add_argument("--start-maximized")
+    options.add_argument("--disable-infobars")
+    options.add_argument("--disable-notifications")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
+
+    # Selenium 4.41+ built-in SeleniumManager
+    driver = webdriver.Edge(options=options)
+
+    driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
+    driver.implicitly_wait(IMPLICIT_WAIT)
+
+    log.info("Edge browser launched successfully")
+    return driver
+
+
+def get_driver():
+    """
+    Factory method — returns the correct driver based on config.
+    Reads BROWSER from .env or config.py.
+    Supported: 'chrome', 'edge'
+    """
+    browser = BROWSER.lower()
+
+    if browser == "chrome":
+        return get_chrome_driver()
+    elif browser == "edge":
+        return get_edge_driver()
+    else:
+        log.error(f"Unsupported browser: {browser}. Use 'chrome' or 'edge'.")
+        raise ValueError(f"Unsupported browser: {browser}")
+
+
+def quit_driver(driver):
+    """Safely quit the browser driver."""
+    if driver:
+        try:
+            driver.quit()
+            log.info("Browser closed.")
+        except Exception:
+            pass
