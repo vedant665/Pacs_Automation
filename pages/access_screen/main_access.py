@@ -1,8 +1,3 @@
-"""
-pages/access_screen/main_access.py
-Run: python pages/access_screen/main_access.py
-"""
-
 import sys
 import os
 import time
@@ -21,6 +16,13 @@ from webdriver_manager.chrome import ChromeDriverManager
 from config import MODULE_LOGIN_URL, PACS_EMAIL, PACS_PASSWORD, PACS_FACILITY
 from common.nav_section import navigate_to
 from pages.access_screen.entity_group import create_entity_group
+from pages.access_screen.role_creation import create_role
+
+
+#dataImportsForAll
+from common.test_data import entity_group_data, role_creation_data
+
+
 
 # ── Logger ──
 logger = logging.getLogger(__name__)
@@ -87,19 +89,19 @@ try:
     login(driver, wait)
 
     # ── NAV TEST ──
-    navigate_to(driver, wait, "Access", "Entity Group Definition")
-    navigate_to(driver, wait, "Access", "Role Creation Screen")
-    navigate_to(driver, wait, "Access", "Role Screen Link")
-    navigate_to(driver, wait, "Access", "User Creation Screen")
-    navigate_to(driver, wait, "Access", "Screen Api Link")
+    # navigate_to(driver, wait, "Access", "Entity Group Definition")
+    # navigate_to(driver, wait, "Access", "Role Creation Screen")
+    # navigate_to(driver, wait, "Access", "Role Screen Link")
+    # navigate_to(driver, wait, "Access", "User Creation Screen")
+    # navigate_to(driver, wait, "Access", "Screen Api Link")
 
     # ── ENTITY GROUP ──
-    navigate_to(driver, wait, "Access", "Entity Group Definition")
-    create_entity_group(driver, wait, "Admin Role", "2")
+    # navigate_to(driver, wait, "Access", "Entity Group Definition")
+    # create_entity_group(driver, wait, **entity_group_data)
 
     # ── ROLE CREATION ──
-    # navigate_to(driver, wait, "Access", "Role Creation Screen")
-    # create_role(driver, wait, ...)
+    navigate_to(driver, wait, "Access", "Role Creation Screen")
+    create_role(driver, wait, **role_creation_data)
 
     # ── ROLE SCREEN LINK ──
     # navigate_to(driver, wait, "Access", "Role Screen Link")
