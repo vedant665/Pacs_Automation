@@ -17,10 +17,11 @@ from config import MODULE_LOGIN_URL, PACS_EMAIL, PACS_PASSWORD, PACS_FACILITY
 from common.nav_section import navigate_to
 from pages.access_screen.entity_group import create_entity_group
 from pages.access_screen.role_creation import create_role
+from pages.access_screen.user_creation import create_user
 
 
 #dataImportsForAll
-from common.test_data import entity_group_data, role_creation_data
+from common.test_data import entity_group_data, role_creation_data, user_creation_data
 
 
 
@@ -100,16 +101,16 @@ try:
     # create_entity_group(driver, wait, **entity_group_data)
 
     # ── ROLE CREATION ──
-    navigate_to(driver, wait, "Access", "Role Creation Screen")
-    create_role(driver, wait, **role_creation_data)
+    # navigate_to(driver, wait, "Access", "Role Creation Screen")
+    # create_role(driver, wait, **role_creation_data)
 
     # ── ROLE SCREEN LINK ──
     # navigate_to(driver, wait, "Access", "Role Screen Link")
     # create_role_screen_link(driver, wait, ...)
 
     # ── USER CREATION ──
-    # navigate_to(driver, wait, "Access", "User Creation Screen")
-    # create_user(driver, wait, ...)
+    navigate_to(driver, wait, "Access", "User Creation Screen")
+    create_user(driver, wait, **user_creation_data)
 
     # ── SCREEN API LINK ──
     # navigate_to(driver, wait, "Access", "Screen Api Link")
