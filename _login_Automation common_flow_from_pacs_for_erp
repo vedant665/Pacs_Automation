@@ -1,0 +1,14 @@
+* [33m019f56f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcommon_flow_from_pacs_for_erp[m[33m, [m[1;31morigin/common_flow_from_pacs_for_erp[m[33m, [m[1;31morigin/Pacs_login_Automation[m[33m, [m[1;32mPacs_login_Automation[m[33m)[m feat: add user creation + improve table verification
+* [33m3b8c3fd[m feat: add role creation + common table verification
+* [33m5d065ec[m feat: add Access module - nav_section, entity_group, config updates
+* [33m102b15a[m Added PACS Forgot Password Automation - 15 tests with Excel report
+* [33mab264fe[m[33m ([m[1;31morigin/bhagyesh_pacs_automation[m[33m)[m access screen codes
+* [33m10d6a1f[m bhagyesh_pacs
+* [33me14b8e3[m bhagyesh_pacs
+[32m|[m * [33m8ac84c7[m[33m ([m[1;31morigin/vedant_agdi_automation[m[33m, [m[1;32mvedant_agdi_automation[m[33m)[m feat: integrate edge-case test runner into dashboard + fix keepalive crash
+[32m|[m * [33m60932ce[m fix: update test_farmer_edges.py with standalone setup functions and new tests
+[32m|[m * [33m10dc48b[m feat: edge-case test suite - 37 tests across 5 registration modules with Excel report
+[32m|[m * [33me785225[m fix: serve dashboard from FastAPI, race condition fix, no Live Server redirect
+[32m|[m * [33m2a78450[m intial commit with ui part
+[32m|[m[32m/[m  
+* [33m5680380[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Initial commit
