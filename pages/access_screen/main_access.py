@@ -15,9 +15,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 from config import MODULE_LOGIN_URL, PACS_EMAIL, PACS_PASSWORD, PACS_FACILITY
 from common.nav_section import navigate_to
-from pages.access_screen.Acess_screens.entity_group import create_entity_group
-from pages.access_screen.Acess_screens.role_creation import create_role
-from pages.access_screen.Acess_screens.user_creation import create_user
+from pages.access_screen.Access_screens.entity_group import create_entity_group
+from pages.access_screen.Access_screens.role_creation import create_role
+from pages.access_screen.Access_screens.user_creation import create_user
 
 
 #dataImportsForAll
