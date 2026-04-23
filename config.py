@@ -19,6 +19,9 @@ BASE_URL = os.getenv("PACS_BASE_URL", "https://pacsdev.algorhythms.in")
 LOGIN_URL = f"{BASE_URL}/#/authentication/signin"
 FORGOT_PASSWORD_URL = f"{BASE_URL}/#/authentication/forgot-password"
 
+MODULE_BASE_URL = os.getenv("MODULE_BASE_URL", "https://pacstest.algorhythms.in")
+MODULE_LOGIN_URL = MODULE_BASE_URL
+
 
 # ============================================================
 # LOGIN CREDENTIALS (loaded from .env)
