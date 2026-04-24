@@ -18,7 +18,7 @@ from selenium.webdriver import ActionChains
 from pages.login_screens.Login_Screens_.forgot_password_page import ForgotPasswordPage
 from pages.login_screens.Login_Screens_.login_page import LoginPage
 from config import LOGIN_URL, FP_EMAIL, FP_NEW_PASSWORD, FP_ALT_PASSWORD, FP_USERNAME, FP_TENANT
-from data.login_data import ForgotPasswordData
+from pages.login_screens.data.login_data import ForgotPasswordData
 
 
 # ================================================================

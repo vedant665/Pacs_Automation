@@ -3,7 +3,7 @@ import os
 import time
 import logging
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -21,7 +21,7 @@ from pages.access_screen.Access_screens.user_creation import create_user
 
 
 #dataImportsForAll
-from common.test_data import entity_group_data, role_creation_data, user_creation_data
+from pages.access_screen.data.test_data import entity_group_data, role_creation_data, user_creation_data
 
 
 
