@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common.logger import log
 from common.browser_utils import get_driver
 from common.auth_helper import AuthSection
-from pages.login_page import LoginPage
+from pages.login_screens.Login_Screens_.login_page import LoginPage
 from config import REPORT_DIR
 
 

@@ -15,7 +15,7 @@ load_dotenv()
 # ============================================================
 # APPLICATION URLs
 # ============================================================
-BASE_URL = os.getenv("PACS_BASE_URL", "https://pacsdev.algorhythms.in")
+BASE_URL = os.getenv("PACS_BASE_URL", "https://pacstest.algorhythms.in")
 LOGIN_URL = f"{BASE_URL}/#/authentication/signin"
 FORGOT_PASSWORD_URL = f"{BASE_URL}/#/authentication/forgot-password"
 
@@ -65,16 +65,11 @@ IMPLICIT_WAIT = 5
 # ============================================================
 # DIRECTORY PATHS (relative to project root)
 # ============================================================
-SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "screenshots")
-REPORT_DIR = os.path.join(os.path.dirname(__file__), "reports")
+SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "pages", "login_screens", "screenshots")
+REPORT_DIR = os.path.join(os.path.dirname(__file__), "pages", "login_screens", "reports")  # ← moved here
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 # Ensure directories exist
 for directory in [SCREENSHOT_DIR, REPORT_DIR, DATA_DIR]:
     os.makedirs(directory, exist_ok=True)
 
-
-# ============================================================
-# REPORT SETTINGS
-# ============================================================
-REPORT_DIR = os.path.join(os.path.dirname(__file__), "reports")

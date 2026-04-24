@@ -25,8 +25,8 @@ from config import (
     FP_EMAIL, FP_CURRENT_PASSWORD, FP_NEW_PASSWORD,
     EXPLICIT_WAIT, PAGE_LOAD_TIMEOUT,
 )
-from pages.login_page import LoginPage
-from pages.forgot_password_page import ForgotPasswordPage
+from pages.login_screens.Login_Screens_.login_page import LoginPage
+from pages.login_screens.Login_Screens_.forgot_password_page import ForgotPasswordPage
 
 
 

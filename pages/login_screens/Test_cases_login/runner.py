@@ -30,11 +30,11 @@ def run_tests(extra_args=None):
 
     # Base arguments
     args = [
-        "tests/",                              # test directory
-        "-v",                                  # verbose output
-        "--tb=short",                          # shorter traceback in console
-        "-s",                                  # show print/input statements (needed for OTP input)
-    ]
+    "pages/login_screens/Test_cases_login/",    # ← NEW path
+    "-v",
+    "--tb=short",
+    "-s",
+]
 
     # Add any extra arguments passed in
     if extra_args:

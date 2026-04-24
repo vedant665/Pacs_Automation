@@ -16,7 +16,7 @@ Usage in tests (manual):
 import os
 from dotenv import load_dotenv
 
-from pages.login_page import LoginPage
+from pages.login_screens.Login_Screens_.login_page import LoginPage
 from common.logger import log
 
 
