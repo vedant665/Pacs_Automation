@@ -1,6 +1,9 @@
 """
-Excel Report Generator for PACS Forgot Password Test Suite
+Excel Report Generator for PACS Automation Test Suite
 Generates a 4-sheet Excel report: Summary, Test Guide, Details, Screenshots
+
+Module-agnostic engine with injectable descriptions & categories.
+FP (Forgot Password) is the built-in default.
 """
 
 import openpyxl
@@ -32,7 +35,7 @@ WRAP_ALIGN = Alignment(wrap_text=True, vertical="top")
 CENTER_ALIGN = Alignment(horizontal="center", vertical="center")
 
 
-# ─── Test Descriptions for Non-Technical Users ────────────────────────────────
+# ─── Default Descriptions (Forgot Password — Login Module) ───────────────────
 # Keys are matched against test function names (partial match supported)
 # Format: short human-readable question anyone can understand
 
@@ -105,39 +108,49 @@ TEST_DESCRIPTIONS = {
 }
 
 
-def _get_test_info(nodeid: str) -> dict:
+# ─── Default Category Map (Forgot Password — Login Module) ───────────────────
+# Maps test class names to category strings for the Summary sheet
+
+DEFAULT_CATEGORIES = {
+    "TestForgotPasswordScreen1": "Screen 1 - Email Entry",
+    "TestForgotPasswordScreen2": "Screen 2 - OTP & Password",
+    "TestForgotPasswordFullFlow": "Full Flow",
+}
+
+
+# ─── Helper Functions ────────────────────────────────────────────────────────
+
+def _get_test_info(nodeid: str, descriptions: dict = None) -> dict:
     """Extract function name from pytest nodeid and find matching description."""
+    desc_map = descriptions if descriptions is not None else TEST_DESCRIPTIONS
     func_name = nodeid.split("::")[-1] if "::" in nodeid else nodeid
 
-    if func_name in TEST_DESCRIPTIONS:
-        return TEST_DESCRIPTIONS[func_name]
+    if func_name in desc_map:
+        return desc_map[func_name]
 
     # Partial match fallback — match by test ID prefix (e.g. "test_fp_s1_03")
     func_lower = func_name.lower()
-    for key, desc in TEST_DESCRIPTIONS.items():
+    for key, desc in desc_map.items():
         if func_lower.startswith(key):
             return desc
 
     # Final fallback for unknown tests
     return {
-        "name": func_name.replace("test_fp_", "").replace("_", " ").title(),
+        "name": func_name.replace("test_", "").replace("_", " ").title(),
         "question": "Automated validation step in the forgot password flow",
     }
 
 
-def _get_category(nodeid: str) -> str:
+def _get_category(nodeid: str, category_map: dict = None) -> str:
     """Extract category from test class name."""
+    cat_map = category_map if category_map is not None else DEFAULT_CATEGORIES
+
     if "::" not in nodeid:
         return "Unknown"
     parts = nodeid.split("::")
     class_name = parts[-2] if len(parts) >= 3 else ""
 
-    category_map = {
-        "TestForgotPasswordScreen1": "Screen 1 - Email Entry",
-        "TestForgotPasswordScreen2": "Screen 2 - OTP & Password",
-        "TestForgotPasswordFullFlow": "Full Flow",
-    }
-    return category_map.get(class_name, "Unknown")
+    return cat_map.get(class_name, "Unknown")
 
 
 def _status_fill(status: str) -> PatternFill:
@@ -181,20 +194,29 @@ def _clean_error_message(message: str) -> str:
     return cleaned
 
 
-def generate_report(results: list, output_dir: str = "reports") -> str:
+def generate_report(results: list, output_dir: str = "reports",
+                    title: str = None, filename_prefix: str = "ForgotPassword",
+                    descriptions: dict = None, categories: dict = None) -> str:
     """
     Generate Excel report with 4 sheets.
 
     Args:
         results: List of dicts with keys: nodeid, status, message, duration, screenshot
         output_dir: Directory to save the report
+        title: Report title shown on sheets (default: "Forgot Password")
+        filename_prefix: Prefix for output filename (default: "ForgotPassword")
+        descriptions: Dict of test descriptions (default: FP descriptions)
+        categories: Dict mapping class_name -> category (default: FP categories)
 
     Returns:
         Path to the generated Excel file
     """
+    # Resolve defaults
+    report_title = title or "Forgot Password"
+
     os.makedirs(output_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"ForgotPassword_TestReport_{timestamp}.xlsx"
+    filename = f"{filename_prefix}_TestReport_{timestamp}.xlsx"
     filepath = os.path.join(output_dir, filename)
 
     wb = openpyxl.Workbook()
@@ -208,7 +230,7 @@ def generate_report(results: list, output_dir: str = "reports") -> str:
 
     ws_summary.merge_cells("A1:F1")
     title_cell = ws_summary["A1"]
-    title_cell.value = "Forgot Password - Test Execution Summary"
+    title_cell.value = f"{report_title} - Test Execution Summary"
     title_cell.font = TITLE_FONT
     title_cell.alignment = Alignment(horizontal="center", vertical="center")
     ws_summary.row_dimensions[1].height = 35
@@ -227,26 +249,25 @@ def generate_report(results: list, output_dir: str = "reports") -> str:
         cell.alignment = CENTER_ALIGN
         cell.border = THIN_BORDER
 
-    categories = {}
+    # Build category stats — dynamic (works for any module)
+    cat_stats = {}
     for r in results:
-        cat = _get_category(r["nodeid"])
-        if cat not in categories:
-            categories[cat] = {"total": 0, "passed": 0, "failed": 0, "error": 0}
-        categories[cat]["total"] += 1
+        cat = _get_category(r["nodeid"], categories)
+        if cat not in cat_stats:
+            cat_stats[cat] = {"total": 0, "passed": 0, "failed": 0, "error": 0}
+        cat_stats[cat]["total"] += 1
         status = r["status"].upper()
         if status == "PASSED":
-            categories[cat]["passed"] += 1
+            cat_stats[cat]["passed"] += 1
         elif status == "FAILED":
-            categories[cat]["failed"] += 1
+            cat_stats[cat]["failed"] += 1
         elif status == "ERROR":
-            categories[cat]["error"] += 1
+            cat_stats[cat]["error"] += 1
 
     row = 5
     total_all = {"total": 0, "passed": 0, "failed": 0, "error": 0}
-    for cat_name in ["Screen 1 - Email Entry", "Screen 2 - OTP & Password", "Full Flow"]:
-        if cat_name not in categories:
-            continue
-        stats = categories[cat_name]
+    for cat_name in cat_stats:
+        stats = cat_stats[cat_name]
         rate = (stats["passed"] / stats["total"] * 100) if stats["total"] > 0 else 0
         ws_summary.cell(row=row, column=1, value=cat_name).border = THIN_BORDER
         ws_summary.cell(row=row, column=2, value=stats["total"]).border = THIN_BORDER
@@ -299,7 +320,7 @@ def generate_report(results: list, output_dir: str = "reports") -> str:
     # Title
     ws_guide.merge_cells("A1:D1")
     g_title = ws_guide["A1"]
-    g_title.value = "Forgot Password - What We Tested"
+    g_title.value = f"{report_title} - What We Tested"
     g_title.font = TITLE_FONT
     g_title.alignment = Alignment(horizontal="center", vertical="center")
     ws_guide.row_dimensions[1].height = 35
@@ -353,7 +374,7 @@ def generate_report(results: list, output_dir: str = "reports") -> str:
 
     for idx, r in enumerate(ordered_tests):
         func_name = r["nodeid"].split("::")[-1] if "::" in r["nodeid"] else r["nodeid"]
-        info = _get_test_info(r["nodeid"])
+        info = _get_test_info(r["nodeid"], descriptions)
         actual = result_lookup.get(func_name, "NOT RUN")
         raw_message = message_lookup.get(func_name, "")
 
@@ -421,7 +442,7 @@ def generate_report(results: list, output_dir: str = "reports") -> str:
         cell.border = THIN_BORDER
 
     for idx, r in enumerate(results, 1):
-        cat = _get_category(r["nodeid"])
+        cat = _get_category(r["nodeid"], categories)
         func_name = r["nodeid"].split("::")[-1] if "::" in r["nodeid"] else r["nodeid"]
         status = r["status"].upper()
         duration = r.get("duration", 0)
@@ -466,7 +487,7 @@ def generate_report(results: list, output_dir: str = "reports") -> str:
     for r in results:
         if r.get("screenshot"):
             shot_idx += 1
-            cat = _get_category(r["nodeid"])
+            cat = _get_category(r["nodeid"], categories)
             func_name = r["nodeid"].split("::")[-1] if "::" in r["nodeid"] else r["nodeid"]
             row_data = [shot_idx, cat, func_name, r["screenshot"]]
             for col_idx, val in enumerate(row_data, 1):

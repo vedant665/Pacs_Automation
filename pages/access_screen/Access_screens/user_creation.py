@@ -30,25 +30,24 @@ if not logger.handlers:
 # ================================================================
 # PRIVATE HELPERS
 # ================================================================
-
-def _fill_input(driver, wait, formcontrol_name, value):
-    """Fill a text input by its formcontrolname attribute."""
-    logger.info(f"  Filling '{formcontrol_name}' = '{value}'")
-
+def _fill_input(driver, wait, field_name, text):
+    
+    """Fill an input field by its formcontrolname."""
+    logger.info(f"  Filling '{field_name}' = '{text}'")
     input_el = wait.until(EC.element_to_be_clickable(
-        (By.XPATH, f"//input[@formcontrolname='{formcontrol_name}']")
+        (By.XPATH, f"//input[@formcontrolname='{field_name}']")
     ))
-    driver.execute_script("arguments[0].scrollIntoView({block:'center'});", input_el)
-    time.sleep(0.3)
-
     try:
-        input_el.click()
         input_el.clear()
-        input_el.send_keys(value)
+        input_el.send_keys(text)
     except Exception:
-        logger.warning(f"  send_keys failed for '{formcontrol_name}', using JS fallback.")
-        driver.execute_script("arguments[0].value = '';", input_el)
-        driver.execute_script("arguments[0].value = arguments[1];", input_el, value)
+        logger.warning(f"  send_keys failed for '{field_name}', using JS fallback.")
+        driver.execute_script(
+            "arguments[0].value = arguments[1];"
+            "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));",
+            input_el, text
+        )
+
 
 
 def _fill_multi_dropdown(driver, wait, label_text, options_list):
