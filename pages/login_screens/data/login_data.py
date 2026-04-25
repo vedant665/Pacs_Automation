@@ -235,3 +235,54 @@ class ForgotPasswordData:
         "One number",
         "One special character",
     ]
+
+
+
+# ================================================================
+# ================================================================
+# LOGIN TEST DATA
+# ================================================================
+# ================================================================
+
+from config import RHYTHMERP_EMAIL, RHYTHMERP_PASSWORD
+
+
+class LoginData:
+
+    # --- RhythmERP Valid Credentials (for positive test) ---
+    VALID_EMAIL = RHYTHMERP_EMAIL
+    VALID_PASSWORD = RHYTHMERP_PASSWORD
+
+    # --- Wrong Credentials ---
+    WRONG_EMAIL = "wronguser@random.com"
+    WRONG_PASSWORD = "WrongPass@99999"
+
+    # --- Invalid Emails (reuses generic data from top of file) ---
+    INVALID_EMAIL_FORMATS = [
+        {"label": "No @ sign", "email": "invalidemail"},
+        {"label": "No domain", "email": "user@"},
+        {"label": "No username", "email": "@domain.com"},
+    ]
+
+    # --- Space Variations (reuses generic data from top of file) ---
+    EMAIL_WITH_SPACES = {
+        "leading": f" {RHYTHMERP_EMAIL}",
+        "trailing": f"{RHYTHMERP_EMAIL} ",
+        "both": f" {RHYTHMERP_EMAIL} ",
+        "middle": "test @gmail.com",
+    }
+
+class ForgotPasswordData:
+    """Test data for forgot password tests."""
+
+    UNREGISTERED_EMAIL = "nonexistent_user_99999@random.com"
+
+    INVALID_OTP = "000000"
+
+    MISMATCH_PASSWORD = "CompletelyDifferent@99999"
+
+    RECENTLY_USED_PASSWORDS = [
+        "Vedant@oldpass1x",
+        "Vedant@oldpass2x",
+        "Vedant@oldpass3x",
+    ]

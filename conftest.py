@@ -39,6 +39,84 @@ test_results = []
 
 
 # ================================================================
+# FORGOT PASSWORD TEST DESCRIPTIONS
+# ================================================================
+
+FP_DESCRIPTIONS = {
+    "test_fp_s1_01": {
+        "name": "Unregistered Email Proceeds",
+        "question": "Does the app proceed to OTP screen even for an email that doesn't exist in the system?",
+    },
+    "test_fp_s1_02": {
+        "name": "Valid Email Sends OTP",
+        "question": "Does a valid registered email trigger OTP delivery and navigate to the OTP screen?",
+    },
+    "test_fp_s1_03": {
+        "name": "Blank Email Submission",
+        "question": "Does clicking Send OTP without entering an email show a validation error or alert?",
+    },
+    "test_fp_s1_04": {
+        "name": "Email with Spaces Trimmed",
+        "question": "Does the app handle emails with leading/trailing spaces — trim them and proceed?",
+    },
+    "test_fp_s1_05": {
+        "name": "Email Case Insensitive",
+        "question": "Does the app treat uppercase and lowercase emails the same way?",
+    },
+    "test_fp_s1_06": {
+        "name": "Double-Click Send OTP Safe",
+        "question": "Does rapid double-clicking Send OTP cause issues like duplicate OTPs or crashes?",
+    },
+    "test_fp_s2_01": {
+        "name": "Invalid OTP Shows Alert",
+        "question": "Does entering a wrong OTP code show an error alert?",
+    },
+    "test_fp_s2_02": {
+        "name": "Password Mismatch Shows Alert",
+        "question": "Does entering different passwords in New Password and Confirm Password show an error?",
+    },
+    "test_fp_s2_03": {
+        "name": "Password Policy Hints Visible",
+        "question": "Do password policy hints (min 12 chars, uppercase, etc.) appear when typing a weak password?",
+    },
+    "test_fp_s2_04": {
+        "name": "Recently Used Password Alert",
+        "question": "Does the app show an error when trying to reset to a recently used password?",
+    },
+    "test_fp_ff_01": {
+        "name": "Browser Back from OTP Screen",
+        "question": "Does pressing browser back on the OTP screen return to email entry or login?",
+    },
+    "test_fp_ff_02": {
+        "name": "Back to Login from Screen 1",
+        "question": "Does clicking 'Back to Login' on Screen 1 return to the login page?",
+    },
+    "test_fp_ff_03": {
+        "name": "Grand Finale: Reset → Login → Dashboard",
+        "question": "THE BIG ONE: Full forgot password flow — reset password, login with new password, reach dashboard?",
+    },
+    "test_fp_ff_04": {
+        "name": "Recently Used Password Rejected",
+        "question": "Does the app reject a password that was just used in the previous reset?",
+    },
+    "test_fp_ff_05": {
+        "name": "Current Password Rejected",
+        "question": "Does the app reject setting the same password as the current one?",
+    },
+    "test_fp_ff_06": {
+        "name": "Cleanup: Reset to Default Password",
+        "question": "Does the cleanup reset the password back to the default so next test run starts clean?",
+    },
+}
+
+FP_CATEGORIES = {
+    "TestForgotPasswordScreen1": "Screen 1 / Email Entry",
+    "TestForgotPasswordScreen2": "Screen 2 / OTP & Password",
+    "TestForgotPasswordFullFlow": "Full Flow",
+}
+
+
+# ================================================================
 # BROWSER FIXTURE
 # ================================================================
 
@@ -130,10 +208,21 @@ def logged_in_driver(driver):
 # PYTEST HOOKS
 # ================================================================
 
+def _is_login_suite(session):
+    """Check if all tests in this session are from Test_cases_login."""
+    items = getattr(session, "items", None)
+    if not items:
+        return False
+    return all("Test_cases_login" in item.nodeid for item in items)
+
+
 def pytest_configure(config):
     """Runs before test session starts."""
+    # Skip header when running login tests — they have their own conftest
+    if hasattr(config, "session") and _is_login_suite(config.session):
+        return
     log.separator("=")
-    log.info(" PACS AUTOMATION TEST SUITE")
+    log.info(" RHYTHMERP FORGOT PASSWORD TEST SUITE")
     log.info(f" Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     log.separator("=")
 
@@ -143,7 +232,13 @@ def pytest_runtest_makereport(item, call):
     """
     Capture test results for Excel report.
     Also takes a screenshot automatically when a test FAILS.
+    Skips when running login tests — they have their own conftest.
     """
+    # Skip — login tests have their own conftest hooks
+    if "Test_cases_login" in item.nodeid:
+        outcome = yield
+        return
+
     outcome = yield
     report = outcome.get_result()
 
@@ -182,10 +277,21 @@ def pytest_runtest_makereport(item, call):
 
 def pytest_sessionfinish(session, exitstatus):
     """Generate Excel report after all tests complete."""
+    # Skip — login tests have their own conftest hooks
+    if _is_login_suite(session):
+        return
+
     if test_results:
         try:
             from common.report_generator import generate_report
-            filepath = generate_report(test_results, output_dir=REPORT_DIR)
+            filepath = generate_report(
+                test_results,
+                output_dir=REPORT_DIR,
+                title="RhythmERP Forgot Password Tests",
+                filename_prefix="RhythmERPForgotPassword",
+                descriptions=FP_DESCRIPTIONS,
+                categories=FP_CATEGORIES,
+            )
             log.separator()
             log.info(f" EXCEL REPORT GENERATED: {filepath}")
             log.separator()

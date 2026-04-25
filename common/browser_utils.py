@@ -6,6 +6,7 @@ Uses Selenium's built-in SeleniumManager (NO webdriver-manager needed).
 """
 
 import os
+import tempfile
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.edge.options import Options as EdgeOptions
@@ -25,6 +26,10 @@ def get_chrome_driver():
         options.add_argument("--headless=new")
         log.info("Headless mode: ON")
 
+    # Fresh temp profile — no saved creds, no autofill memory, clean slate every run
+    temp_profile = tempfile.mkdtemp(prefix="rhythm_test_chrome_")
+    options.add_argument(f"--user-data-dir={temp_profile}")
+
     # Common options for stability
     options.add_argument("--start-maximized")
     options.add_argument("--disable-infobars")
@@ -33,10 +38,19 @@ def get_chrome_driver():
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-autofill")
 
     # Handle "Chrome is being controlled by automated test software" banner
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
+
+    # Disable autofill — belt and suspenders
+    prefs = {
+        "credentials_enable_service": False,
+        "profile.password_manager_enabled": False,
+        "autofill.profile_enabled": False,
+    }
+    options.add_experimental_option("prefs", prefs)
 
     # Selenium 4.41+ built-in SeleniumManager — no webdriver-manager needed
     driver = webdriver.Chrome(options=options)
@@ -45,7 +59,7 @@ def get_chrome_driver():
     driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
     driver.implicitly_wait(IMPLICIT_WAIT)
 
-    log.info("Chrome browser launched successfully")
+    log.info("Chrome browser launched successfully (fresh profile)")
     return driver
 
 
@@ -59,6 +73,10 @@ def get_edge_driver():
         options.add_argument("--headless=new")
         log.info("Headless mode: ON")
 
+    # Fresh temp profile — no saved creds, no autofill memory, clean slate every run
+    temp_profile = tempfile.mkdtemp(prefix="rhythm_test_edge_")
+    options.add_argument(f"--user-data-dir={temp_profile}")
+
     options.add_argument("--start-maximized")
     options.add_argument("--disable-infobars")
     options.add_argument("--disable-notifications")
@@ -66,9 +84,18 @@ def get_edge_driver():
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-autofill")
 
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
+
+    # Disable autofill
+    prefs = {
+        "credentials_enable_service": False,
+        "profile.password_manager_enabled": False,
+        "autofill.profile_enabled": False,
+    }
+    options.add_experimental_option("prefs", prefs)
 
     # Selenium 4.41+ built-in SeleniumManager
     driver = webdriver.Edge(options=options)
@@ -76,7 +103,7 @@ def get_edge_driver():
     driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
     driver.implicitly_wait(IMPLICIT_WAIT)
 
-    log.info("Edge browser launched successfully")
+    log.info("Edge browser launched successfully (fresh profile)")
     return driver
 
 

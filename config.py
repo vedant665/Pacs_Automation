@@ -43,8 +43,9 @@ PACS_FACILITY = os.getenv("PACS_FACILITY", "")
 # RHYTHMERP LOGIN CREDENTIALS
 # ============================================================
 RHYTHMERP_EMAIL = "test@gmail.com"
-RHYTHMERP_PASSWORD = "Test@1234"
+RHYTHMERP_PASSWORD = "Test@1315378"
 RHYTHMERP_FACILITY = ""  # blank text dropdown — click by index
+
 
 
 # ============================================================
@@ -69,9 +70,10 @@ FP_OLD_PASSWORDS = [
 RHYTHMERP_FP_EMAIL = "vedant@rhythmflows.com"
 RHYTHMERP_FP_USERNAME = "test@gmail.com"
 RHYTHMERP_FP_TENANT = ""  # blank text — click by index
-RHYTHMERP_FP_CURRENT_PASSWORD = "Test@1234"
+RHYTHMERP_FP_CURRENT_PASSWORD = "Test@1315378"
 RHYTHMERP_FP_NEW_PASSWORD = ""
 RHYTHMERP_FP_ALT_PASSWORD = ""
+RHYTHMERP_FP_DEFAULT_PASSWORD = "Test@2526270"   # cleanup target — reset back after tests
 RHYTHMERP_FP_OLD_PASSWORDS = ["", "", ""]
 
 

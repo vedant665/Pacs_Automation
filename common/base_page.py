@@ -14,6 +14,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import (
     TimeoutException,
     NoSuchElementException,
@@ -59,21 +60,27 @@ class BasePage:
             log.error(f"Element NOT found: {by} = '{value}'")
             raise
 
-    def find_clickable_element(self, locator):
+    def find_clickable_element(self, locator, timeout=None):
         """Find an element that is also clickable."""
         by, value = self._parse_locator(locator)
+        wait_time = timeout or EXPLICIT_WAIT
         try:
-            element = self.wait.until(EC.element_to_be_clickable((by, value)))
+            element = WebDriverWait(self.driver, wait_time).until(
+                EC.element_to_be_clickable((by, value))
+            )
             return element
         except TimeoutException:
             log.error(f"Clickable element NOT found: {by} = '{value}'")
             raise
 
-    def find_visible_element(self, locator):
+    def find_visible_element(self, locator, timeout=None):
         """Find an element that is visible on the page."""
         by, value = self._parse_locator(locator)
+        wait_time = timeout or EXPLICIT_WAIT
         try:
-            element = self.wait.until(EC.visibility_of_element_located((by, value)))
+            element = WebDriverWait(self.driver, wait_time).until(
+                EC.visibility_of_element_located((by, value))
+            )
             return element
         except TimeoutException:
             log.error(f"Visible element NOT found: {by} = '{value}'")
@@ -88,23 +95,79 @@ class BasePage:
         return elements
 
     # ================================================================
+    # OVERLAY / BACKDROP HELPERS
+    # ================================================================
+
+    def dismiss_open_overlays(self):
+        """
+        Press Escape if any Angular CDK overlay backdrop is open.
+        Waits for it to fully disappear before returning.
+        This prevents ElementClickInterceptedException when a mat-select
+        panel or dropdown is left open from a prior action.
+        """
+        try:
+            backdrops = self.driver.find_elements(
+                By.CSS_SELECTOR, ".cdk-overlay-backdrop-showing"
+            )
+            if backdrops:
+                ActionChains(self.driver).send_keys(Keys.ESCAPE).perform()
+                WebDriverWait(self.driver, 5).until(
+                    EC.invisibility_of_element_located(
+                        (By.CSS_SELECTOR, ".cdk-overlay-backdrop-showing")
+                    )
+                )
+                log.info("Dismissed open CDK overlay backdrop")
+                time.sleep(0.2)  # brief settle after animation
+        except Exception:
+            pass  # overlay was already gone or dismiss had no effect
+
+    def wait_for_overlay_gone(self, timeout=10):
+        """
+        Wait until ALL CDK overlay backdrops (select panels, dialogs)
+        have disappeared from the DOM.
+        """
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                EC.invisibility_of_element_located(
+                    (By.CSS_SELECTOR, ".cdk-overlay-backdrop-showing")
+                )
+            )
+        except TimeoutException:
+            log.warning("Overlay backdrop did not disappear within timeout")
+
+    # ================================================================
     # ELEMENT INTERACTIONS
     # ================================================================
 
     def click(self, locator):
-        """Wait for element to be clickable, then click it."""
+        """
+        Wait for element to be clickable, then click it.
+
+        Fallback chain:
+          1. Normal .click()
+          2. Dismiss any blocking CDK overlay, then retry .click()
+          3. JavaScript click as last resort
+        """
         element = self.find_clickable_element(locator)
         try:
             element.click()
             log.info(f"Clicked: {locator}")
         except ElementClickInterceptedException:
-            # Fallback: scroll into view and click
-            self.driver.execute_script(
-                "arguments[0].scrollIntoView(true);", element
-            )
-            time.sleep(0.5)
-            element.click()
-            log.info(f"Clicked (with scroll): {locator}")
+            # Step 1: try dismissing any open overlay (mat-select panel, backdrop)
+            self.dismiss_open_overlays()
+            try:
+                # Re-fetch element after overlay dismissal
+                element = self.find_clickable_element(locator)
+                element.click()
+                log.info(f"Clicked (after overlay dismiss): {locator}")
+            except ElementClickInterceptedException:
+                # Step 2: scroll into view and JS-click as final fallback
+                self.driver.execute_script(
+                    "arguments[0].scrollIntoView({block: 'center'});", element
+                )
+                time.sleep(0.3)
+                self.driver.execute_script("arguments[0].click();", element)
+                log.info(f"Clicked (JS fallback): {locator}")
 
     def click_with_retry(self, locator, max_retries=3):
         """Click with retry logic for flaky elements."""
@@ -140,7 +203,6 @@ class BasePage:
 
     def press_enter(self, locator):
         """Press Enter key on a specific element."""
-        from selenium.webdriver.common.keys import Keys
         element = self.find_visible_element(locator)
         element.send_keys(Keys.ENTER)
         log.info(f"Pressed Enter on: {locator}")

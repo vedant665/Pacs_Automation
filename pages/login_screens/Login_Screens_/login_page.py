@@ -1,12 +1,15 @@
 """
 login_page.py
 -------------
-Page Object Model for PACS Login Page.
+Page Object Model for PACS / RhythmERP Login Page.
 """
 
 import time
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.keys import Keys
 from common.base_page import BasePage
 from common.logger import log
 from config import LOGIN_URL, EXPLICIT_WAIT
@@ -14,7 +17,7 @@ from config import LOGIN_URL, EXPLICIT_WAIT
 
 class LoginPage(BasePage):
     """
-    Page Object for the PACS Login Page.
+    Page Object for the PACS / RhythmERP Login Page.
     """
 
     # ================================================================
@@ -35,7 +38,7 @@ class LoginPage(BasePage):
     LOGIN_BUTTON_GENERIC = ("xpath", "//button[@type='submit']")
 
     # --- Error Messages ---
-    ERROR_MESSAGE = ("css", ".mat-mdc-snack-bar-container, [role='alert'], .error-message")
+    ERROR_MESSAGE = ("css", ".mat-mdc-snack-bar-container, [role='alert'], .error-message, div.alert.alert-danger")
     TOAST_NOTIFICATION = ("css", "snack-bar-container, .mat-mdc-snack-bar-container")
 
     # --- Labels ---
@@ -83,14 +86,21 @@ class LoginPage(BasePage):
         self.type_text(self.PASSWORD_INPUT, password, clear_first=True)
 
     def select_facility(self, facility_name):
-        """Select a facility from the Angular Material mat-select dropdown."""
+        """Select a facility from the Angular Material mat-select dropdown by name."""
         log.step(3, f"Selecting facility: {facility_name}")
 
-        # Click the mat-select trigger to open dropdown
-        self.click(self.FACILITY_SELECT_TRIGGER)
-        time.sleep(0.5)
+        # Ensure no leftover overlay before opening
+        self.dismiss_open_overlays()
 
-        # Find and click the desired option
+        self.click(self.FACILITY_SELECT_TRIGGER)
+
+        # Wait for panel to open
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "mat-option")
+            )
+        )
+
         option_locator = (
             "xpath",
             f"//mat-option[contains(.,'{facility_name}')]"
@@ -110,47 +120,65 @@ class LoginPage(BasePage):
             self.click(fallback_locator)
             log.info(f"Selected facility (fallback): {facility_name}")
 
+        # Wait for the dropdown overlay to fully close before returning
+        self.wait_for_overlay_gone(timeout=10)
+
     def select_facility_by_index(self, index=0):
         """Select facility by index (for blank/invisible text dropdowns).
 
         Used when mat-option text is empty or not visible due to UI bug.
         Options render inside cdk-overlay-pane (appended to body).
+        Waits for the overlay to fully close before returning so the
+        next action (e.g. click_login) is never blocked by the open panel.
         """
         log.step(3, f"Selecting facility by index: {index}")
 
-        self.click(self.FACILITY_SELECT_TRIGGER)
-        time.sleep(1)
+        # Ensure no leftover overlay before opening
+        self.dismiss_open_overlays()
 
-        # mat-option renders inside cdk-overlay-pane (on body), not inside mat-select
+        self.click(self.FACILITY_SELECT_TRIGGER)
+
+        # Wait for mat-option elements to appear inside the overlay pane
         try:
             options = WebDriverWait(self.driver, 10).until(
-                EC.presence_of_all_elements_located((
-                    By.CSS_SELECTOR, "div.cdk-overlay-pane mat-option"
-                ))
+                EC.presence_of_all_elements_located(
+                    (By.CSS_SELECTOR, "div.cdk-overlay-pane mat-option")
+                )
             )
-            if index < len(options):
-                self.driver.execute_script("arguments[0].click();", options[index])
-                log.info(f"Selected facility option at index {index}")
-            else:
-                raise Exception(f"Index {index} not found, only {len(options)} options")
         except Exception:
-            log.warning("cdk-overlay-pane mat-option failed, trying panel fallback...")
-            options = self.driver.find_elements(
-                By.CSS_SELECTOR, ".mat-mdc-select-panel mat-option"
+            log.warning("cdk-overlay-pane mat-option not found, trying panel fallback...")
+            options = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_all_elements_located(
+                    (By.CSS_SELECTOR, ".mat-mdc-select-panel mat-option")
+                )
             )
-            if index < len(options):
-                self.driver.execute_script("arguments[0].click();", options[index])
-                log.info(f"Selected facility option at index {index} (fallback)")
-            else:
-                raise Exception("No facility option found")
-            
 
+        if index >= len(options):
+            raise Exception(
+                f"Index {index} out of range — only {len(options)} option(s) found"
+            )
+
+        # JS-click the option directly (avoids any overlay interception)
+        self.driver.execute_script("arguments[0].click();", options[index])
+        log.info(f"Selected facility option at index {index}")
+
+        # Wait for the dropdown overlay to fully close before returning.
+        # This is the critical step that prevents the panel from blocking
+        # the Login button click that follows.
+        self.wait_for_overlay_gone(timeout=10)
 
     def click_login(self):
-        """Click the Login button."""
+        """Click the Login button.
+
+        Dismisses any open CDK overlay (e.g. a still-animating mat-select
+        panel) before attempting the click, so it never gets intercepted.
+        """
         log.step(4, "Clicking Login button")
+
+        # Ensure no overlay is blocking the button
+        self.dismiss_open_overlays()
+
         try:
-            # Try primary locator (button with text "Login")
             if self.is_displayed(self.LOGIN_BUTTON, timeout=5):
                 self.click(self.LOGIN_BUTTON)
             elif self.is_displayed(self.LOGIN_BUTTON_CSS, timeout=3):
@@ -217,8 +245,8 @@ class LoginPage(BasePage):
         except Exception:
             return False
 
-    def is_error_message_displayed(self):
-        return self.is_displayed(self.ERROR_MESSAGE, timeout=5)
+    def is_error_message_displayed(self, timeout=5):
+        return self.is_displayed(self.ERROR_MESSAGE, timeout=timeout)
 
     def get_error_message_text(self):
         try:
@@ -267,6 +295,7 @@ class LoginPage(BasePage):
     def get_all_facilities(self):
         """Open dropdown and return all available options."""
         facilities = []
+        self.dismiss_open_overlays()
         self.click(self.FACILITY_SELECT_TRIGGER)
         time.sleep(0.5)
         try:
@@ -277,10 +306,8 @@ class LoginPage(BasePage):
                     facilities.append(text)
         except Exception:
             log.warning("Could not read facility options")
-        from selenium.webdriver.common.keys import Keys
-        from selenium.webdriver.common.action_chains import ActionChains
         ActionChains(self.driver).send_keys(Keys.ESCAPE).perform()
-        time.sleep(0.3)
+        self.wait_for_overlay_gone(timeout=5)
         return facilities
 
     def clear_all_fields(self):
