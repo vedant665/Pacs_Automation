@@ -7,12 +7,14 @@ Screen 2: Enter OTP + New Password -> Reset Password
 Screen 3: Success -> Back to Login
 
 Inherits all helper methods from BasePage.
+Supports multiple products (PACS, RhythmERP) via config overrides.
 """
 
 from selenium.webdriver.support.ui import WebDriverWait
 
 from common.base_page import BasePage
-from config import EXPLICIT_WAIT, FORGOT_PASSWORD_URL, LOGIN_URL
+from config import EXPLICIT_WAIT
+import config
 
 
 class ForgotPasswordPage(BasePage):
@@ -44,7 +46,7 @@ class ForgotPasswordPage(BasePage):
     # ================================================================
     ERROR_MESSAGE = ("css", "mat-error, div.custom-field-error, .mat-mdc-form-field-error")
     TOAST_MESSAGE = ("css", "snack-bar-container, .mat-snack-bar-container, [role='alert']")
-    ALERT_DANGER = ("css", "div.alert.alert-danger")          # <-- ADDED
+    ALERT_DANGER = ("css", "div.alert.alert-danger")
 
     # ================================================================
     # NAVIGATION
@@ -56,7 +58,7 @@ class ForgotPasswordPage(BasePage):
 
     def navigate_directly(self):
         """Go directly to forgot password URL."""
-        self.driver.get(FORGOT_PASSWORD_URL)
+        self.driver.get(config.FORGOT_PASSWORD_URL)
 
     def wait_for_page_load(self):
         """Wait for forgot password page elements to load."""
@@ -162,7 +164,7 @@ class ForgotPasswordPage(BasePage):
         except Exception:
             return []
 
-    def get_alert_danger_text(self):                        # <-- ADDED
+    def get_alert_danger_text(self):
         """Return text of alert-danger element if visible, else None."""
         if self.is_displayed(self.ALERT_DANGER, timeout=5):
             return self.get_text(self.ALERT_DANGER)

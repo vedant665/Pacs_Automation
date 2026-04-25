@@ -54,6 +54,13 @@ class LoginPage(BasePage):
         self.wait_for_page_load()
         log.info("Login page loaded successfully")
 
+    def load_url(self, url):
+        """Navigate to a specific login URL (for multi-product support)."""
+        log.info(f"Loading login page: {url}")
+        self.navigate_to(url)
+        self.wait_for_page_load()
+        log.info("Login page loaded successfully")
+
     def wait_for_page_load(self):
         """Wait for login page elements to be fully loaded."""
         try:
@@ -103,6 +110,42 @@ class LoginPage(BasePage):
             self.click(fallback_locator)
             log.info(f"Selected facility (fallback): {facility_name}")
 
+    def select_facility_by_index(self, index=0):
+        """Select facility by index (for blank/invisible text dropdowns).
+
+        Used when mat-option text is empty or not visible due to UI bug.
+        Options render inside cdk-overlay-pane (appended to body).
+        """
+        log.step(3, f"Selecting facility by index: {index}")
+
+        self.click(self.FACILITY_SELECT_TRIGGER)
+        time.sleep(1)
+
+        # mat-option renders inside cdk-overlay-pane (on body), not inside mat-select
+        try:
+            options = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_all_elements_located((
+                    By.CSS_SELECTOR, "div.cdk-overlay-pane mat-option"
+                ))
+            )
+            if index < len(options):
+                self.driver.execute_script("arguments[0].click();", options[index])
+                log.info(f"Selected facility option at index {index}")
+            else:
+                raise Exception(f"Index {index} not found, only {len(options)} options")
+        except Exception:
+            log.warning("cdk-overlay-pane mat-option failed, trying panel fallback...")
+            options = self.driver.find_elements(
+                By.CSS_SELECTOR, ".mat-mdc-select-panel mat-option"
+            )
+            if index < len(options):
+                self.driver.execute_script("arguments[0].click();", options[index])
+                log.info(f"Selected facility option at index {index} (fallback)")
+            else:
+                raise Exception("No facility option found")
+            
+
+
     def click_login(self):
         """Click the Login button."""
         log.step(4, "Clicking Login button")
@@ -133,9 +176,19 @@ class LoginPage(BasePage):
         self.click_login()
 
     def login_default(self):
-        """Login using default credentials from config."""
+        """Login using default PACS credentials from config."""
         from config import PACS_EMAIL, PACS_PASSWORD, PACS_FACILITY
         self.login(PACS_EMAIL, PACS_PASSWORD, PACS_FACILITY)
+
+    def login_rhythmerp(self):
+        """Login using RhythmERP credentials from config."""
+        from config import RHYTHMERP_EMAIL, RHYTHMERP_PASSWORD, RHYTHMERP_LOGIN_URL
+        log.info("Starting RhythmERP login flow...")
+        self.load_url(RHYTHMERP_LOGIN_URL)
+        self.enter_email(RHYTHMERP_EMAIL)
+        self.enter_password(RHYTHMERP_PASSWORD)
+        self.select_facility_by_index(index=0)
+        self.click_login()
 
     # ================================================================
     # VERIFICATION METHODS
@@ -173,13 +226,13 @@ class LoginPage(BasePage):
         except Exception:
             return ""
 
-    def wait_for_login_complete(self, timeout=20):
+    def wait_for_login_complete(self, timeout=20, login_url=None):
         """Wait for login to complete (URL changes away from login page)."""
         log.info("Waiting for login to complete...")
-        login_url = LOGIN_URL.lower()
+        check_url = (login_url or LOGIN_URL).lower()
         try:
             WebDriverWait(self.driver, timeout).until(
-                lambda driver: login_url not in driver.current_url.lower()
+                lambda driver: check_url not in driver.current_url.lower()
             )
             log.info("Login completed successfully")
             log.info(f"Current URL: {self.driver.current_url}")

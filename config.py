@@ -24,11 +24,27 @@ MODULE_LOGIN_URL = MODULE_BASE_URL
 
 
 # ============================================================
+# RHYTHMERP APPLICATION
+# ============================================================
+RHYTHMERP_BASE_URL = "https://rhythmerp.algorhythms.in"
+RHYTHMERP_LOGIN_URL = f"{RHYTHMERP_BASE_URL}/#/authentication/signin"
+RHYTHMERP_FORGOT_PASSWORD_URL = f"{RHYTHMERP_BASE_URL}/#/authentication/forgot-password"
+
+
+# ============================================================
 # LOGIN CREDENTIALS (loaded from .env)
 # ============================================================
 PACS_EMAIL = os.getenv("PACS_EMAIL", "")
 PACS_PASSWORD = os.getenv("PACS_PASSWORD", "")
 PACS_FACILITY = os.getenv("PACS_FACILITY", "")
+
+
+# ============================================================
+# RHYTHMERP LOGIN CREDENTIALS
+# ============================================================
+RHYTHMERP_EMAIL = "test@gmail.com"
+RHYTHMERP_PASSWORD = "Test@1234"
+RHYTHMERP_FACILITY = ""  # blank text dropdown — click by index
 
 
 # ============================================================
@@ -45,6 +61,18 @@ FP_OLD_PASSWORDS = [
     os.getenv("FP_OLD_PASSWORD_2", ""),
     os.getenv("FP_OLD_PASSWORD_3", ""),
 ]
+
+
+# ============================================================
+# RHYTHMERP FORGOT PASSWORD CREDENTIALS
+# ============================================================
+RHYTHMERP_FP_EMAIL = "vedant@rhythmflows.com"
+RHYTHMERP_FP_USERNAME = "test@gmail.com"
+RHYTHMERP_FP_TENANT = ""  # blank text — click by index
+RHYTHMERP_FP_CURRENT_PASSWORD = "Test@1234"
+RHYTHMERP_FP_NEW_PASSWORD = ""
+RHYTHMERP_FP_ALT_PASSWORD = ""
+RHYTHMERP_FP_OLD_PASSWORDS = ["", "", ""]
 
 
 # ============================================================
@@ -66,10 +94,9 @@ IMPLICIT_WAIT = 5
 # DIRECTORY PATHS (relative to project root)
 # ============================================================
 SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "pages", "login_screens", "screenshots")
-REPORT_DIR = os.path.join(os.path.dirname(__file__), "pages", "login_screens", "reports")  # ← moved here
+REPORT_DIR = os.path.join(os.path.dirname(__file__), "pages", "login_screens", "reports")
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 # Ensure directories exist
 for directory in [SCREENSHOT_DIR, REPORT_DIR, DATA_DIR]:
     os.makedirs(directory, exist_ok=True)
-
