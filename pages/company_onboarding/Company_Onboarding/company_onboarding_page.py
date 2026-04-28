@@ -344,12 +344,12 @@ class CompanyOnboardingPage(BasePage):
 
         # Read all available options from UI
         options = self.driver.find_elements(By.CSS_SELECTOR, "div[role='listbox'] mat-option")
-        option_texts = [t for t in [opt.text.strip() for opt in options] if t and not t.startswith("Select")]
+        option_texts = [t for t in [opt.text.strip() for opt in options] if t and not t.startswith("Select") and t != "No results found"]
 
         # Fallback for newer Angular Material
         if not option_texts:
             options = self.driver.find_elements(By.CSS_SELECTOR, "div[role='listbox'] [role='option']")
-            option_texts = [opt.text.strip() for opt in options if opt.text.strip()]
+            option_texts = [opt.text.strip() for opt in options if opt.text.strip() and opt.text.strip() != "No results found"]
 
         if not option_texts:
             raise Exception(f"No options found in '{label_name}' dropdown")
@@ -395,8 +395,14 @@ class CompanyOnboardingPage(BasePage):
     def fill_address_details(self, data, row_index=1):
         self._force_close_panels()
         log.info(f"Filling Address Details row {row_index}...")
+        # Random address type: Registered or Corporate
+        addr_types = ["Registered Address", "Corporate Address"]
         if data.get("address_type"):
-            self._select_mat_option(self._idx(self.ADDRESS_TYPE_SELECT, row_index), data["address_type"])
+            # Use data-provided type but swap if it conflicts with row 1
+            chosen_type = data["address_type"]
+        else:
+            chosen_type = random.choice(addr_types)
+        self._select_mat_option(self._idx(self.ADDRESS_TYPE_SELECT, row_index), chosen_type)
         if data.get("country"):
             self._select_mat_option(self._idx(self.COUNTRY_SELECT, row_index), data["country"])
             self.wait_seconds(0.5)
@@ -475,9 +481,11 @@ class CompanyOnboardingPage(BasePage):
         # Step 3: Address (fixed 2 rows)
         self.go_to_step3()
         num_addr = company_data.get("num_addresses", 1)
+        addr_types = random.sample(["Registered Address", "Corporate Address"], min(num_addr, 2))
         for idx in range(1, num_addr + 1):
             if idx > 1:
                 self.add_row()
+            company_data["address_type"] = addr_types[(idx - 1) % len(addr_types)]
             self.fill_address_details(company_data, row_index=idx)
         # Step 4: Business Activities (random 1-4 rows)
         self.go_to_step4()
