@@ -1,0 +1,141 @@
+"""
+conftest.py - Company Onboarding (RhythmERP)
+"""
+
+import os
+import sys
+import pytest
+from datetime import datetime
+from common.report_generator import generate_report
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+sys.path.insert(0, PROJECT_ROOT)
+
+from common.logger import log
+from common.browser_utils import get_driver
+from pages.login_screens.Login_Screens_.login_page import LoginPage
+from config import RHYTHMERP_LOGIN_URL, RHYTHMERP_EMAIL, RHYTHMERP_PASSWORD, RHYTHMERP_FACILITY
+
+
+
+from config import REPORT_DIR
+import os
+
+# Test result storage
+co_test_results = []
+
+CO_CATEGORIES = {
+    "TestSingleCompanyCreation": "Single Company Creation",
+    "TestBulkCompanyCreation": "Bulk Company Creation",
+    "TestParallelCompanyCreation": "Parallel Company Creation",
+}
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Capture test results for company onboarding Excel report."""
+    outcome = yield
+    report = outcome.get_result()
+
+    if report.when == "call":
+        co_test_results.append({
+            "nodeid": item.nodeid,
+            "status": "PASSED" if report.passed else "FAILED",
+            "message": str(report.longrepr) if report.failed else "",
+            "duration": report.duration,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "screenshot": "",
+        })
+
+        if report.failed:
+            driver = None
+            for fixture_name in ["driver", "logged_in_driver"]:
+                if fixture_name in item.funcargs:
+                    driver = item.funcargs[fixture_name]
+                    break
+            if driver:
+                try:
+                    os.makedirs(REPORT_DIR, exist_ok=True)
+                    shot_name = f"FAILED_{item.name}"
+                    screenshot_dir = os.path.join(PROJECT_ROOT, "pages", "company_onboarding", "screenshots")
+                    os.makedirs(screenshot_dir, exist_ok=True)
+                    shot_path = os.path.join(screenshot_dir, f"{shot_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                    driver.save_screenshot(shot_path)
+                    co_test_results[-1]["screenshot"] = shot_path
+                    log.error(f"Failure screenshot saved: {shot_path}")
+                except Exception as e:
+                    log.error(f"Could not take failure screenshot: {e}")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Generate Excel report for company onboarding tests."""
+    if co_test_results:
+        try:
+            co_report_dir = os.path.join(PROJECT_ROOT, "pages", "company_onboarding", "reports")
+            filepath = generate_report(
+                co_test_results,
+                output_dir=co_report_dir,
+                title="RhythmERP Company Onboarding Tests",
+                filename_prefix="CompanyOnboarding",
+                categories=CO_CATEGORIES,
+            )
+            log.separator()
+            log.info(f" COMPANY ONBOARDING REPORT: {filepath}")
+            log.separator()
+        except Exception as e:
+            log.error(f"Failed to generate report: {e}")
+
+@pytest.fixture(scope="session")
+def driver():
+    log.separator()
+    log.info("LAUNCHING BROWSER (RhythmERP)...")
+    log.separator()
+    drv = get_driver()
+    drv.maximize_window()
+    yield drv
+    log.separator()
+    log.info("CLOSING BROWSER...")
+    log.separator()
+    try:
+        drv.quit()
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="session")
+def logged_in_driver(driver):
+    """Driver with completed RhythmERP login session."""
+    log.separator()
+    log.info("LOGGING INTO RHYTHMERP...")
+    log.separator()
+
+    login_page = LoginPage(driver)
+
+    log.info(f"Navigating to: {RHYTHMERP_LOGIN_URL}")
+    driver.get(RHYTHMERP_LOGIN_URL)
+    login_page.wait_seconds(2)
+
+    log.step(1, f"Entering email: {RHYTHMERP_EMAIL}")
+    login_page.enter_email(RHYTHMERP_EMAIL)
+
+    log.step(2, "Entering password")
+    login_page.enter_password(RHYTHMERP_PASSWORD)
+
+    if RHYTHMERP_FACILITY:
+        log.step(3, f"Selecting facility: {RHYTHMERP_FACILITY}")
+        login_page.select_facility(RHYTHMERP_FACILITY)
+    else:
+        log.step(3, "Selecting facility (blank - first option)")
+        login_page.select_facility(" ")
+
+    login_page.wait_seconds(1)
+
+    log.step(4, "Clicking Login button")
+    login_button = ("xpath", "//button[contains(.,'Login')]")
+    login_page.click(login_button)
+    login_page.wait_seconds(3)
+
+    login_page.wait_for_login_complete()
+    log.info("RhythmERP login successful!")
+
+    yield driver

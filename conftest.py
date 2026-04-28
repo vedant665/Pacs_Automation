@@ -209,11 +209,15 @@ def logged_in_driver(driver):
 # ================================================================
 
 def _is_login_suite(session):
-    """Check if all tests in this session are from Test_cases_login."""
+    """Check if tests belong to a module with its own conftest hooks."""
     items = getattr(session, "items", None)
     if not items:
         return False
-    return all("Test_cases_login" in item.nodeid for item in items)
+    # Skip for login tests (have own conftest) and company_onboarding (have own conftest)
+    return all(
+        "Test_cases_login" in item.nodeid or "company_onboarding" in item.nodeid
+        for item in items
+    )
 
 
 def pytest_configure(config):

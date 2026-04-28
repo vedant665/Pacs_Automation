@@ -137,7 +137,7 @@ def _get_test_info(nodeid: str, descriptions: dict = None) -> dict:
     # Final fallback for unknown tests
     return {
         "name": func_name.replace("test_", "").replace("_", " ").title(),
-        "question": "Automated validation step in the forgot password flow",
+        "question": "Automated validation step in the test flow",
     }
 
 
