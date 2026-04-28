@@ -405,7 +405,7 @@ class CompanyOnboardingPage(BasePage):
         uid = data.get("address", "").split(",")[0].strip() or str(row_index)
         address_text = f"{uid}, Test Street, {selected_taluka}"
         self.type_text(self._idx(self.ADDRESS_INPUT, row_index), address_text, clear_first=True)
-        pin = "".join(random.choices("0123456789", k=6))
+        pin = str(random.randint(110000, 899999))
         self.type_text(self._idx(self.PIN_CODE_INPUT, row_index), pin, clear_first=True)
         log.info(f"Address Details row {row_index} filled")
 
