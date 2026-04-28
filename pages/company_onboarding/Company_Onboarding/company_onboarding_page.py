@@ -370,6 +370,28 @@ class CompanyOnboardingPage(BasePage):
         log.info(f"Random '{label_name}' selected: '{selected}'")
         return selected
 
+
+    def _fill_address_location_with_retry(self, row_index=1, max_attempts=15):
+        """
+        Select State -> District -> Taluka with retry logic.
+        If Taluka has no options, retry with different random selections.
+        """
+        for attempt in range(1, max_attempts + 1):
+            log.info(f"Address location attempt {attempt}/{max_attempts}")
+            try:
+                self._force_close_panels()
+                self._select_random_from_dropdown(self._idx(self.STATE_SELECT, row_index), "State")
+                self.wait_seconds(0.5)
+                self._select_random_from_dropdown(self._idx(self.DISTRICT_SELECT, row_index), "District")
+                self.wait_seconds(0.5)
+                taluka = self._select_random_from_dropdown(self._idx(self.TALUKA_SELECT, row_index), "Taluka")
+                if taluka:
+                    return taluka
+            except Exception as e:
+                log.warning(f"Attempt {attempt} failed: {e}")
+                self._force_close_panels()
+        raise Exception(f"Could not find valid State/District/Taluka after {max_attempts} attempts")
+
     def fill_address_details(self, data, row_index=1):
         self._force_close_panels()
         log.info(f"Filling Address Details row {row_index}...")
@@ -378,11 +400,8 @@ class CompanyOnboardingPage(BasePage):
         if data.get("country"):
             self._select_mat_option(self._idx(self.COUNTRY_SELECT, row_index), data["country"])
             self.wait_seconds(0.5)
-        selected_state = self._select_random_from_dropdown(self._idx(self.STATE_SELECT, row_index), "State")
-        self.wait_seconds(0.5)
-        selected_district = self._select_random_from_dropdown(self._idx(self.DISTRICT_SELECT, row_index), "District")
-        self.wait_seconds(0.5)
-        selected_taluka = self._select_random_from_dropdown(self._idx(self.TALUKA_SELECT, row_index), "Taluka")
+        selected_taluka = self._fill_address_location_with_retry(row_index=row_index)
+        log.info(f"Address location resolved: Taluka = {selected_taluka}")
         uid = data.get("address", "").split(",")[0].strip() or str(row_index)
         address_text = f"{uid}, Test Street, {selected_taluka}"
         self.type_text(self._idx(self.ADDRESS_INPUT, row_index), address_text, clear_first=True)
