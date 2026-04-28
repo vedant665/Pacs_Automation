@@ -111,12 +111,20 @@ class TestSingleCompanyCreation:
 
         page.create_company(SINGLE_COMPANY)
 
-        # Verify
+        # Verify via table search (server takes 30-40s to save)
+        company_name = SINGLE_COMPANY['company_name']
+        log.info(f"Waiting for server to save record (40s)...")
+        page.wait_seconds(40)
+        
+        # Dismiss dialog if still open
+        page.click_cancel_or_dismiss_dialog()
         page.wait_seconds(2)
-        dialog_closed = page.is_dialog_closed()
-        assert dialog_closed, "Dialog did not close after one-call creation"
+        
+        # Search table for the company
+        found = page.verify_company_exists(company_name)
+        assert found, f"Company not found in table: {company_name}"
 
-        log.passed("One-call company creation successful!")
+        log.passed(f"One-call company creation successful! Verified: {company_name}")
         log.test_end("Create Company (One-Call Method)", "PASSED")
 
 

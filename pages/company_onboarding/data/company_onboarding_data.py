@@ -31,24 +31,24 @@ COMPANY_BACKGROUNDS = [
 # PROMOTER DATA (random 1 per company)
 # ================================================================
 PROMOTER_DATA = [
-    {"name": "Mr Chaitnya Namdev Chavhan", "remark": "Mr Chavhan is an agri-enthusiast, tech savvy personnel and a businessman working in trading of agriculture commodities for more than 3 years."},
-    {"name": "Mr Durgesh Vishnu Bankar", "remark": "Mr Bankar is an agri-enthusiast, tech savvy personnel and a businessman working in trading of agriculture commodities for more than 2 years."},
-    {"name": "Mr Amit Ramesh Sharma", "remark": "Mr Sharma is an experienced agriculturist with expertise in organic farming practices and sustainable agricultural methods for over 5 years."},
-    {"name": "Mr Suresh Dnyaneshwar Patil", "remark": "Mr Patil is a progressive farmer and agripreneur involved in agricultural commodity trading and food processing for more than 4 years."},
-    {"name": "Mr Rajesh Bhimrao Jadhav", "remark": "Mr Jadhav is a tech-savvy agri-business professional specializing in supply chain management and agricultural marketing for over 3 years."},
-    {"name": "Mr Vikram Anil Deshmukh", "remark": "Mr Deshmukh is an agri-enthusiast with deep knowledge of agricultural finance, crop insurance, and farming technology for more than 6 years."},
+    {"name": "Mr Chaitnya Namdev Chavhan", "remark": "Mr Chavhan."},
+    {"name": "Mr Durgesh Vishnu Bankar", "remark": "Mr Bankar."},
+    {"name": "Mr Amit Ramesh Sharma", "remark": "Mr Sharma."},
+    {"name": "Mr Suresh Dnyaneshwar Patil", "remark": "Mr Patil."},
+    {"name": "Mr Rajesh Bhimrao Jadhav", "remark": "Mr Jadhav."},
+    {"name": "Mr Vikram Anil Deshmukh", "remark": "Mr Deshmukh."},
 ]
 
 # ================================================================
 # BUSINESS DETAILS (fixed values from mentor)
 # ================================================================
-BUSINESS_MODEL = "Agri-Input - Products and materials used by farmers to enhance agricultural productivity. This includes seeds, fertilizers, pesticides, machinery, irrigation systems, and other equipment."
+BUSINESS_MODEL = "Agri-Input - Products and materials."
 
-MARKET_LINKAGES = "Market linkage involves connecting farmers with reliable suppliers of quality seeds, fertilizers, and machinery through agri-retailers, cooperatives, or digital platforms."
+MARKET_LINKAGES = "Market linkage involves connecting farmers."
 
-LINE_OF_BUSINESS = "Products and materials used by farmers to enhance agricultural productivity. This includes seeds, fertilizers, pesticides, machinery, irrigation systems, and other equipment."
+LINE_OF_BUSINESS = "Products and materials used by farmers."
 
-ADDITIONAL_BUSINESS_ACTIVITIES = "FPC carries out the business of Production, harvesting, procurement, grading, pooling, handling, marketing, selling, export of primary agricultural produce of the Members or import of goods or services for benefit to the members of the company. Also carries out Processing including preserving, drying, distilling, brewing, venting, canning and packaging of produce of its Members Also is in manufacturing, sale or supply of machinery, equipment or consumables mainly to its Members."
+ADDITIONAL_BUSINESS_ACTIVITIES = "FPC carries out the business of Production."
 
 # ================================================================
 # INFRASTRUCTURE DATA
@@ -321,18 +321,18 @@ def _generate_single_company():
         "address": f"{uid}, Test Street, {taluka}",
         # BUG FIX 2: use pin_code from _get_random_address() instead of hardcoded range
         "pin_code": pin_code,
-        "promoters": random.sample(PROMOTER_DATA, random.randint(1, 4)),
+        "promoters": random.sample(PROMOTER_DATA, 2),
         "business_model": BUSINESS_MODEL,
         "market_linkages": MARKET_LINKAGES,
         "line_of_business": LINE_OF_BUSINESS,
         "additional_business_activities": ADDITIONAL_BUSINESS_ACTIVITIES,
         "infra_location": random.choice(INFRASTRUCTURE_LOCATIONS),
-            "num_addresses": random.randint(1, 2),
-            "num_business_rows": random.randint(1, 4),
-            "num_infra_rows": random.randint(1, 4),
-            "num_addresses": random.randint(1, 2),
-            "num_business_rows": random.randint(1, 4),
-            "num_infra_rows": random.randint(1, 4)
+            "num_addresses": 2,
+            "num_business_rows": 2,
+            "num_infra_rows": 2,
+            "num_addresses": 2,
+            "num_business_rows": 2,
+            "num_infra_rows": 2
     }
 
 
@@ -474,7 +474,7 @@ def generate_bulk_companies(count=1000, start_index=1):
             "taluka": taluka,
             "address": address_line,
             "pin_code": pin_code,
-        "promoters": random.sample(PROMOTER_DATA, random.randint(1, 4)),
+        "promoters": random.sample(PROMOTER_DATA, 2),
             "business_model": BUSINESS_MODEL,
             "market_linkages": MARKET_LINKAGES,
             "line_of_business": LINE_OF_BUSINESS,

@@ -6,7 +6,6 @@ import os
 import sys
 import pytest
 from datetime import datetime
-from common.report_generator import generate_report
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
@@ -16,36 +15,30 @@ from common.browser_utils import get_driver
 from pages.login_screens.Login_Screens_.login_page import LoginPage
 from config import RHYTHMERP_LOGIN_URL, RHYTHMERP_EMAIL, RHYTHMERP_PASSWORD, RHYTHMERP_FACILITY
 
-
-
-from config import REPORT_DIR
-import os
-
-# Test result storage
+# Test result storage (for screenshot capture only)
 co_test_results = []
 
-CO_CATEGORIES = {
-    "TestSingleCompanyCreation": "Single Company Creation",
-    "TestBulkCompanyCreation": "Bulk Company Creation",
-    "TestParallelCompanyCreation": "Parallel Company Creation",
-}
+# Screenshots dir
+CO_SCREENSHOT_DIR = os.path.join(PROJECT_ROOT, "pages", "company_onboarding", "screenshots")
+CO_REPORT_DIR = os.path.join(PROJECT_ROOT, "pages", "company_onboarding", "reports")
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """Capture test results for company onboarding Excel report."""
+    """Capture test results and screenshots on failure."""
     outcome = yield
     report = outcome.get_result()
 
     if report.when == "call":
-        co_test_results.append({
+        result = {
             "nodeid": item.nodeid,
             "status": "PASSED" if report.passed else "FAILED",
             "message": str(report.longrepr) if report.failed else "",
             "duration": report.duration,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "screenshot": "",
-        })
+        }
+        co_test_results.append(result)
 
         if report.failed:
             driver = None
@@ -55,35 +48,43 @@ def pytest_runtest_makereport(item, call):
                     break
             if driver:
                 try:
-                    os.makedirs(REPORT_DIR, exist_ok=True)
+                    os.makedirs(CO_SCREENSHOT_DIR, exist_ok=True)
                     shot_name = f"FAILED_{item.name}"
-                    screenshot_dir = os.path.join(PROJECT_ROOT, "pages", "company_onboarding", "screenshots")
-                    os.makedirs(screenshot_dir, exist_ok=True)
-                    shot_path = os.path.join(screenshot_dir, f"{shot_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                    shot_path = os.path.join(CO_SCREENSHOT_DIR, f"{shot_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
                     driver.save_screenshot(shot_path)
-                    co_test_results[-1]["screenshot"] = shot_path
+                    result["screenshot"] = shot_path
                     log.error(f"Failure screenshot saved: {shot_path}")
                 except Exception as e:
                     log.error(f"Could not take failure screenshot: {e}")
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Generate Excel report for company onboarding tests."""
-    if co_test_results:
-        try:
-            co_report_dir = os.path.join(PROJECT_ROOT, "pages", "company_onboarding", "reports")
-            filepath = generate_report(
-                co_test_results,
-                output_dir=co_report_dir,
-                title="RhythmERP Company Onboarding Tests",
-                filename_prefix="CompanyOnboarding",
-                categories=CO_CATEGORIES,
-            )
+    """Generate data-focused Excel report from CO_SUBMISSIONS."""
+    try:
+        from pages.company_onboarding.Company_Onboarding.company_onboarding_page import CO_SUBMISSIONS
+        from pages.company_onboarding.co_report_generator import generate_co_report
+
+        if CO_SUBMISSIONS:
+            companies = [s["data"] for s in CO_SUBMISSIONS]
+            results = [{
+                "status": s["status"],
+                "error": s.get("error", ""),
+                "duration": s["data"].get("_duration", 0),
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            } for s in CO_SUBMISSIONS]
+
+            filepath = generate_co_report(companies, results, CO_REPORT_DIR)
             log.separator()
-            log.info(f" COMPANY ONBOARDING REPORT: {filepath}")
+            log.info(f" COMPANY ONBOARDING DATA REPORT: {filepath}")
+            log.info(f" Companies: {len(companies)} | Passed: {sum(1 for r in results if r['status'] == 'PASSED')}")
             log.separator()
-        except Exception as e:
-            log.error(f"Failed to generate report: {e}")
+            # Clear for next run
+            CO_SUBMISSIONS.clear()
+        else:
+            log.info("No company submissions to report")
+    except Exception as e:
+        log.error(f"Failed to generate data report: {e}")
+
 
 @pytest.fixture(scope="session")
 def driver():
@@ -131,7 +132,7 @@ def logged_in_driver(driver):
     login_page.wait_seconds(1)
 
     log.step(4, "Clicking Login button")
-    login_button = ("xpath", "//button[contains(.,'Login')]")
+    login_button = ("xpath", "//button[contains(.,\'Login\')]")
     login_page.click(login_button)
     login_page.wait_seconds(3)
 

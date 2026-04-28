@@ -21,6 +21,9 @@ from common.logger import log
 from config import RHYTHMERP_BASE_URL
 
 
+CO_SUBMISSIONS = []
+
+
 class CompanyOnboardingPage(BasePage):
     PAGE_URL = f"{RHYTHMERP_BASE_URL}/#/dynamic-screens/Company%20Onboarding"
 
@@ -83,6 +86,13 @@ class CompanyOnboardingPage(BasePage):
     INFRA_LOCATION_INPUT = ("xpath", "//app-dynamic-details//input[@name='Infrastructure Location']")
     INFRA_OWNERSHIP_SELECT = ("xpath", "//app-dynamic-details//mat-label[normalize-space(.)='Ownership Type']/ancestor::mat-form-field//mat-select")
 
+
+    # ---- Table & Search ----
+    SEARCH_BUTTON = ('css', 'button.search-btn')
+    SEARCH_INPUT = ('css', '.erp-search-wrapper input')
+    TABLE_COMPANY_NAMES = ('css', 'td.cdk-column-name')
+    PAGINATOR_LABEL = ('css', '.mat-mdc-paginator-range-label')
+    REFRESH_BUTTON_HEADER = ('xpath', "//button[*[contains(@class,'material-icons') and text()='refresh']]")
     # ---- Dialog footer ----
     CANCEL_BUTTON = ("xpath", "//div[@class='popup-footer']//button[contains(.,'Cancel')]")
     SUBMIT_BUTTON = ("xpath", "//div[@class='popup-footer']//button[contains(.,'Submit')]")
@@ -320,7 +330,7 @@ class CompanyOnboardingPage(BasePage):
     # Fill Address Details
     # ================================================================
 
-    def _select_random_from_dropdown(self, select_locator, label_name):
+    def _select_random_from_dropdown(self, select_locator, label_name, exclude=None):
         """
         Open a mat-select dropdown, read ALL options from the UI,
         pick one randomly, click it, and return the selected text.
@@ -353,6 +363,12 @@ class CompanyOnboardingPage(BasePage):
 
         if not option_texts:
             raise Exception(f"No options found in '{label_name}' dropdown")
+
+        # Exclude already-used options
+        if exclude:
+            option_texts = [t for t in option_texts if t not in exclude]
+            if not option_texts:
+                raise Exception(f"No remaining options in {label_name} after excluding {exclude}")
 
         # Pick random
         selected = random.choice(option_texts)
@@ -413,6 +429,18 @@ class CompanyOnboardingPage(BasePage):
         self.type_text(self._idx(self.ADDRESS_INPUT, row_index), address_text, clear_first=True)
         pin = str(random.randint(110000, 899999))
         self.type_text(self._idx(self.PIN_CODE_INPUT, row_index), pin, clear_first=True)
+        # Store address record
+        if "addresses" not in data:
+            data["addresses"] = []
+        while len(data["addresses"]) < row_index:
+            data["addresses"].append({})
+        data["addresses"][row_index - 1] = {
+            "address_type": data.get("address_type", ""),
+            "country": data.get("country", ""),
+            "taluka": selected_taluka,
+            "address": address_text,
+            "pin_code": pin,
+        }
         log.info(f"Address Details row {row_index} filled")
 
     def fill_promoters(self, promoter, row_index=1):
@@ -444,13 +472,74 @@ class CompanyOnboardingPage(BasePage):
     def fill_infrastructure(self, data, row_index=1):
         log.info(f"Filling Infrastructure row {row_index}...")
         self._force_close_panels()
-        self._select_random_from_dropdown(self._idx(self.INFRA_TYPE_SELECT, row_index), "Infrastructure Type")
+        used_types = data.get("_used_infra_types", [])
+        infra_type = self._select_random_from_dropdown(
+            self._idx(self.INFRA_TYPE_SELECT, row_index),
+            "Infrastructure Type", exclude=used_types
+        )
+        data["_used_infra_types"] = used_types + [infra_type]
         self.wait_seconds(0.5)
         self.type_text(self._idx(self.INFRA_LOCATION_INPUT, row_index), data.get("infra_location", "Test Location"), clear_first=True)
         self.wait_seconds(0.3)
-        self._select_random_from_dropdown(self._idx(self.INFRA_OWNERSHIP_SELECT, row_index), "Ownership Type")
+        ownership = self._select_random_from_dropdown(self._idx(self.INFRA_OWNERSHIP_SELECT, row_index), "Ownership Type")
         self.wait_seconds(0.5)
+        # Store infrastructure record
+        if "infrastructure" not in data:
+            data["infrastructure"] = []
+        while len(data["infrastructure"]) < row_index:
+            data["infrastructure"].append({})
+        data["infrastructure"][row_index - 1] = {
+            "infra_type": infra_type,
+            "infra_location": data.get("infra_location", "Test Location"),
+            "ownership_type": ownership,
+        }
         log.info(f"Infrastructure row {row_index} filled")
+
+
+    def search_company(self, company_name):
+        """Search for a company in the table. Returns True if found."""
+        try:
+            self._force_close_panels()
+            # Click search button
+            if self.is_displayed(self.SEARCH_BUTTON, timeout=5):
+                self.click(self.SEARCH_BUTTON)
+                self.wait_seconds(0.5)
+            # Type search term
+            if self.is_displayed(self.SEARCH_INPUT, timeout=5):
+                self.type_text(self.SEARCH_INPUT, company_name, clear_first=True)
+                self.wait_seconds(1)
+            # Check if company appears in table
+            rows = self.driver.find_elements(By.CSS_SELECTOR, 'td.cdk-column-name')
+            for row in rows:
+                if company_name.strip().lower() in row.text.strip().lower():
+                    log.info(f"Company found in table: {row.text.strip()}")
+                    return True
+            log.warning(f"Company not found in table: {company_name}")
+            return False
+        except Exception as e:
+            log.error(f"Search failed: {e}")
+            return False
+
+    def clear_search(self):
+        """Clear search and restore full table."""
+        try:
+            if self.is_displayed(self.SEARCH_INPUT, timeout=3):
+                self.type_text(self.SEARCH_INPUT, '', clear_first=True)
+                self.wait_seconds(0.5)
+                # Press Escape to close search
+                from selenium.webdriver.common.keys import Keys
+                self.driver.find_element(By.CSS_SELECTOR, '.erp-search-wrapper input').send_keys(Keys.ESCAPE)
+                self.wait_seconds(0.5)
+        except Exception:
+            pass
+
+    def verify_company_exists(self, company_name):
+        """Full verification: search table for company name."""
+        self.navigate_to_page()
+        self.wait_seconds(2)
+        found = self.search_company(company_name)
+        self.clear_search()
+        return found
 
     def submit(self):
         log.info("Submitting form...")
@@ -501,13 +590,31 @@ class CompanyOnboardingPage(BasePage):
             if idx > 1:
                 self.add_row()
             self.fill_infrastructure(company_data, row_index=idx)
-        self.submit()
-        msg = self.get_success_message(timeout=30)
-        if msg:
-            log.info(f"Server message: {msg}")
-        else:
-            log.warning("No success message detected")
-        self.wait_seconds(2)
+        success = True
+        error_msg = ""
+        try:
+            self.submit()
+            msg = self.get_success_message(timeout=60)
+            if msg:
+                log.info(f"Server message: {msg}")
+            else:
+                log.warning("No success message detected")
+            self.wait_seconds(2)
+            dialog_closed = self.is_dialog_closed()
+            if not dialog_closed:
+                success = False
+                error_msg = msg or "Dialog did not close"
+        except Exception as e:
+            success = False
+            error_msg = str(e)
+        # Store submission record
+        import copy
+        CO_SUBMISSIONS.append({
+            "data": copy.deepcopy(company_data),
+            "status": "PASSED" if success else "FAILED",
+            "error": error_msg,
+        })
+        log.info(f"Company submission recorded: {'PASSED' if success else 'FAILED'}")
 
     def create_bulk_companies(self, companies_list, on_progress=None):
         total = len(companies_list)
@@ -545,7 +652,7 @@ class CompanyOnboardingPage(BasePage):
         return self.is_displayed(self.ADDRESS_INPUT, timeout=5)
 
     def is_dialog_closed(self):
-        return not self.is_displayed(self.COMPANY_NAME_INPUT, timeout=15)
+        return not self.is_displayed(self.COMPANY_NAME_INPUT, timeout=60)
 
     def get_success_message(self, timeout=10):
         toast = ("css", "snack-bar-container .mat-mdc-snack-bar-label, [role='alert']")
