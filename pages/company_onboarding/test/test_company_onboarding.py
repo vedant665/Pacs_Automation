@@ -113,16 +113,20 @@ class TestSingleCompanyCreation:
 
         # Verify via table search (server takes 30-40s to save)
         company_name = SINGLE_COMPANY['company_name']
-        log.info(f"Waiting for server to save record (40s)...")
-        page.wait_seconds(40)
-        
-        # Dismiss dialog if still open
-        page.click_cancel_or_dismiss_dialog()
-        page.wait_seconds(2)
-        
-        # Search table for the company
-        found = page.verify_company_exists(company_name)
-        assert found, f"Company not found in table: {company_name}"
+        # Poll table until company appears (up to 90s)
+        found = False
+        for attempt in range(18):
+            log.info(f"Table check attempt {attempt + 1}/18 (every 5s)...")
+            try:
+                page.click(("css", "button[mattooltip='REFRESH'], div[mattooltip='REFRESH'] button"))
+                page.wait_seconds(3)
+            except Exception:
+                pass
+            found = page.verify_company_exists(company_name)
+            if found:
+                break
+            page.wait_seconds(5)
+        assert found, f"Company not found in table after 90s: {company_name}"
 
         log.passed(f"One-call company creation successful! Verified: {company_name}")
         log.test_end("Create Company (One-Call Method)", "PASSED")
@@ -339,16 +343,22 @@ class TestParallelCompanyCreation:
     @pytest.mark.parametrize("idx", range(BULK_COUNT))
     def test_create_company_parallel(self, logged_in_driver, idx):
         """Create a single company with unique data. Use -n N to run N in parallel."""
+        import time
         driver = logged_in_driver
         page = CompanyOnboardingPage(driver)
 
         company = generate_bulk_companies(1)[0]
+        company_name = company.get("company_name", f"Company_{idx}")
 
         page.navigate_to_page()
         assert page.is_page_loaded(), "Company Onboarding page did not load"
 
-        page.create_company(company)
-
-        dialog_closed = page.is_dialog_closed()
-        if not dialog_closed:
-            log.warning(f"Dialog still open for: {company['company_name']} - record likely saved")
+        start = time.time()
+        try:
+            page.create_company(company)
+            elapsed = time.time() - start
+            log.info(f"[Worker-{idx}] {company_name} -> PASSED ({elapsed:.1f}s)")
+        except Exception as e:
+            elapsed = time.time() - start
+            log.failed(f"[Worker-{idx}] {company_name} -> FAILED ({elapsed:.1f}s): {e}")
+            raise

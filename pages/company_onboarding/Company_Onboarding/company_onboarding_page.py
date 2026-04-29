@@ -599,11 +599,12 @@ class CompanyOnboardingPage(BasePage):
                 log.info(f"Server message: {msg}")
             else:
                 log.warning("No success message detected")
-            self.wait_seconds(2)
-            dialog_closed = self.is_dialog_closed()
-            if not dialog_closed:
-                success = False
-                error_msg = msg or "Dialog did not close"
+            self.wait_seconds(3)
+            if not msg:
+                dialog_closed = self.is_dialog_closed()
+                if not dialog_closed:
+                    success = False
+                    error_msg = "No success message and dialog did not close"
         except Exception as e:
             success = False
             error_msg = str(e)
@@ -617,28 +618,42 @@ class CompanyOnboardingPage(BasePage):
         log.info(f"Company submission recorded: {'PASSED' if success else 'FAILED'}")
 
     def create_bulk_companies(self, companies_list, on_progress=None):
+        import time as _time
         total = len(companies_list)
         results = []
         for i, comp in enumerate(companies_list, 1):
             name = comp.get("company_name", f"Company_{i}")
             log.info(f"[{i}/{total}] Creating: {name}")
             result = {"index": i, "company_name": name, "status": "passed", "error": ""}
+            start_time = _time.time()
             try:
                 self.create_company(comp)
+                result["status"] = "passed"
             except Exception as e:
                 result["status"] = "failed"
                 result["error"] = str(e)
                 log.failed(f"Failed: {name} - {e}")
+            elapsed = _time.time() - start_time
+            result["duration"] = round(elapsed, 1)
+            log.info(f"  [{i}/{total}] {name} -> {result['status'].upper()} ({elapsed:.1f}s)")
+            try:
+                self.click_cancel_or_dismiss_dialog()
+                self.click_refresh()
+                self.wait_seconds(2)
+            except Exception:
                 try:
-                    self.click_cancel_or_dismiss_dialog()
-                    self.click_refresh()
-                except Exception:
                     self.navigate_to_page()
+                    self.wait_seconds(2)
+                except Exception:
+                    pass
             results.append(result)
             if on_progress:
                 on_progress(i, total, name)
         passed = sum(1 for r in results if r["status"] == "passed")
-        log.info(f"Bulk creation: {passed}/{total} passed")
+        failed = sum(1 for r in results if r["status"] == "failed")
+        log.separator()
+        log.info(f" BULK COMPLETE: {passed}/{total} passed, {failed} failed")
+        log.separator()
         return results
 
     # ================================================================
@@ -654,9 +669,37 @@ class CompanyOnboardingPage(BasePage):
     def is_dialog_closed(self):
         return not self.is_displayed(self.COMPANY_NAME_INPUT, timeout=60)
 
-    def get_success_message(self, timeout=10):
+    def get_success_message(self, timeout=30):
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        try:
+            wait = WebDriverWait(self.driver, timeout)
+            title_el = wait.until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, "#swal2-title"))
+            )
+            msg = title_el.text
+            if msg:
+                log.info(f"SweetAlert appeared: {msg}")
+                try:
+                    confirm_btn = WebDriverWait(self.driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, ".swal2-confirm"))
+                    )
+                    confirm_btn.click()
+                    log.info("SweetAlert confirm button clicked")
+                except Exception:
+                    log.warning("Could not click SweetAlert confirm, waiting for auto-dismiss")
+                    try:
+                        WebDriverWait(self.driver, 5).until(
+                            EC.invisibility_of_element_located((By.CSS_SELECTOR, "#swal2-title"))
+                        )
+                    except Exception:
+                        pass
+                return msg
+        except Exception:
+            pass
         toast = ("css", "snack-bar-container .mat-mdc-snack-bar-label, [role='alert']")
-        if self.is_displayed(toast, timeout=timeout):
+        if self.is_displayed(toast, timeout=5):
             return self.get_text(toast)
         return ""
 

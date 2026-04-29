@@ -17,6 +17,7 @@ from config import RHYTHMERP_LOGIN_URL, RHYTHMERP_EMAIL, RHYTHMERP_PASSWORD, RHY
 
 # Test result storage (for screenshot capture only)
 co_test_results = []
+co_test_types = set()  # tracks "creation" or "update"
 
 # Screenshots dir
 CO_SCREENSHOT_DIR = os.path.join(PROJECT_ROOT, "pages", "company_onboarding", "screenshots")
@@ -30,6 +31,11 @@ def pytest_runtest_makereport(item, call):
     report = outcome.get_result()
 
     if report.when == "call":
+        if "update" in item.nodeid:
+            co_test_types.add("update")
+        else:
+            co_test_types.add("creation")
+
         result = {
             "nodeid": item.nodeid,
             "status": "PASSED" if report.passed else "FAILED",
@@ -59,8 +65,11 @@ def pytest_runtest_makereport(item, call):
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Generate data-focused Excel report from CO_SUBMISSIONS."""
+    """Generate appropriate Excel report based on test type."""
     try:
+        if "update" in co_test_types and "creation" not in co_test_types:
+            log.info("Update tests ran - DataReport skipped (UpdateReport already generated)")
+            return
         from pages.company_onboarding.Company_Onboarding.company_onboarding_page import CO_SUBMISSIONS
         from pages.company_onboarding.co_report_generator import generate_co_report
 
