@@ -1,4 +1,4 @@
-"""
+﻿"""
 Test data for Company Onboarding UPDATE tests.
 
 Step order (matches actual app):
@@ -13,7 +13,7 @@ import random
 import string
 
 # Company name must already exist in the system
-UPDATE_COMPANY_NAME = "Washim"
+UPDATE_COMPANY_NAME = "Orion Link Services"
 
 
 # ---- Random data generators ----

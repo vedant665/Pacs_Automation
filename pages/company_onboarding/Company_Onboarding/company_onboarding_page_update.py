@@ -1,4 +1,4 @@
-"""
+﻿"""
 Update page object for Company Onboarding.
 Inherits from CompanyOnboardingPage.
 
@@ -25,95 +25,118 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
         """Read the current value of a text input or textarea."""
         try:
             el = self.driver.find_element(*locator)
-            return (el.get_attribute("value") or el.text or "").strip()
+            self.driver.execute_script(
+                "arguments[0].focus(); arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",
+                el
+            )
+            self.wait_seconds(0.15)
+            val = el.get_attribute("value")
+            if val and val.strip():
+                return val.strip()
+            val = el.get_attribute("ng-reflect-model")
+            if val and val.strip():
+                return val.strip()
+            val = el.get_attribute("ng-reflect-ng-model")
+            if val and val.strip():
+                return val.strip()
+            val = el.text
+            if val and val.strip():
+                return val.strip()
+            val = self.driver.execute_script(
+                "var e=arguments[0]; var p=e.closest('mat-form-field');"
+                "if(p){var i=p.querySelector('input,textarea');"
+                "if(i)return i.value||'';}"
+                "return e.value||'';",
+                el
+            )
+            if val and val.strip():
+                return val.strip()
+            return ""
         except Exception:
             return ""
 
-    # ================================================================
-    # READ all step values (for report)
-    # ================================================================
+    def _read_select_value(self, locator):
+        """Read the currently displayed text from a mat-select dropdown."""
+        try:
+            trigger = ("xpath", f"{locator[1]}//div[contains(@class,'mat-mdc-select-trigger')]")
+            el = self.driver.find_element(*trigger)
+            return (el.text or "").strip()
+        except Exception:
+            return ""
 
     def read_all_step_values(self):
-        """
-        Walk through all 5 steps reading current field values.
-        Returns dict: { step1: {...}, step2: {...}, ... }
-        """
+        """Walk through all 5 steps reading ALL field values."""
         values = {}
-
-        # Step 1: Company Details
         try:
-            values["step1"] = {
-                "contact_name":   self._read_text_field(self.CONTACT_NAME_INPUT),
-                "email":          self._read_text_field(self.EMAIL_INPUT),
-                "mobile_number":  self._read_text_field(self.MOBILE_NUMBER_INPUT),
-            }
+            values["step1"] = {"1": {
+                "company_name":       self._read_text_field(self.COMPANY_NAME_INPUT),
+                "company_short_name": self._read_text_field(self.COMPANY_SHORT_NAME_INPUT),
+                "contact_name":       self._read_text_field(self.CONTACT_NAME_INPUT),
+                "company_background": self._read_text_field(self.COMPANY_BACKGROUND_INPUT),
+                "email":              self._read_text_field(self.EMAIL_INPUT),
+                "mobile_number":      self._read_text_field(self.MOBILE_NUMBER_INPUT),
+                "pan":                self._read_text_field(self.PAN_INPUT),
+                "gstin":              self._read_text_field(self.GSTIN_INPUT),
+                "cin":                self._read_text_field(self.CIN_INPUT),
+                "entity_group":       self._read_select_value(self.ENTITY_GROUP_SELECT),
+                "parent_name":        self._read_select_value(self.PARENT_NAME_SELECT),
+                "plan_type":          self._read_select_value(self.PLAN_TYPE_SELECT),
+            }}
             log.info(f"  Read Step 1: {values['step1']}")
         except Exception as e:
             log.warning(f"Could not read Step 1: {e}")
-
-        # Step 2: Promoters
         self._click_next()
         self.wait_seconds(1)
         try:
-            values["step2"] = {
-                "1": {
-                    "promoter_name":   self._read_text_field(("xpath", "(//app-dynamic-details//input[@name='Name'])[1]")),
-                    "promoter_remark": self._read_text_field(("xpath", "(//app-dynamic-details//textarea[@name='Remark'])[1]")),
-                }
-            }
+            values["step2"] = {"1": {
+                "promoter_name":   self._read_text_field(("xpath", "(//app-dynamic-details//input[@name='Name'])[1]")),
+                "promoter_remark": self._read_text_field(("xpath", "(//app-dynamic-details//textarea[@name='Remark'])[1]")),
+            }}
             log.info(f"  Read Step 2 (Promoters): {values['step2']}")
         except Exception as e:
             log.warning(f"Could not read Step 2: {e}")
-
-        # Step 3: Address
         self._click_next()
         self.wait_seconds(1)
         try:
-            values["step3"] = {
-                "1": {
-                    "address":   self._read_text_field(("xpath", "(//app-dynamic-details//input[@name='Address'])[1]")),
-                    "pin_code":  self._read_text_field(("xpath", "(//app-dynamic-details//input[@name='Pin Code'])[1]")),
-                }
-            }
+            values["step3"] = {"1": {
+                "address_type": self._read_select_value(self._idx(self.ADDRESS_TYPE_SELECT, 1)),
+                "country":      self._read_select_value(self._idx(self.COUNTRY_SELECT, 1)),
+                "state":        self._read_select_value(self._idx(self.STATE_SELECT, 1)),
+                "district":     self._read_select_value(self._idx(self.DISTRICT_SELECT, 1)),
+                "taluka":       self._read_select_value(self._idx(self.TALUKA_SELECT, 1)),
+                "address":      self._read_text_field(("xpath", "(//app-dynamic-details//input[@name='Address'])[1]")),
+                "pin_code":     self._read_text_field(("xpath", "(//app-dynamic-details//input[@name='Pin Code'])[1]")),
+            }}
             log.info(f"  Read Step 3 (Address): {values['step3']}")
         except Exception as e:
             log.warning(f"Could not read Step 3 (Address): {e}")
-
-        # Step 4: Business Details
         self._click_next()
         self.wait_seconds(1)
         try:
-            values["step4"] = {
-                "1": {
-                    "business_model":   self._read_text_field(self._idx(self.BUSINESS_MODEL_INPUT, 1)),
-                    "market_linkages":  self._read_text_field(self._idx(self.MARKET_LINKAGES_INPUT, 1)),
-                }
-            }
+            values["step4"] = {"1": {
+                "business_model":                self._read_text_field(self._idx(self.BUSINESS_MODEL_INPUT, 1)),
+                "market_linkages":               self._read_text_field(self._idx(self.MARKET_LINKAGES_INPUT, 1)),
+                "line_of_business":              self._read_text_field(self._idx(self.LINE_OF_BUSINESS_INPUT, 1)),
+                "additional_business_activities": self._read_text_field(self._idx(self.ADDITIONAL_BUSINESS_INPUT, 1)),
+            }}
             log.info(f"  Read Step 4 (Business): {values['step4']}")
         except Exception as e:
             log.warning(f"Could not read Step 4 (Business): {e}")
-
-        # Step 5: Infrastructure
         self._click_next()
         self.wait_seconds(1)
         try:
-            values["step5"] = {
-                "1": {
-                    "infra_location": self._read_text_field(self._idx(self.INFRA_LOCATION_INPUT, 1)),
-                }
-            }
+            values["step5"] = {"1": {
+                "infra_type":     self._read_select_value(self._idx(self.INFRA_TYPE_SELECT, 1)),
+                "infra_location": self._read_text_field(self._idx(self.INFRA_LOCATION_INPUT, 1)),
+                "ownership_type": self._read_select_value(self._idx(self.INFRA_OWNERSHIP_SELECT, 1)),
+            }}
             log.info(f"  Read Step 5 (Infrastructure): {values['step5']}")
         except Exception as e:
             log.warning(f"Could not read Step 5 (Infrastructure): {e}")
-
         return values
 
-    # ================================================================
-    # NAVIGATE back to Step 1
-    # ================================================================
-
     def _navigate_back_to_step1(self):
-        """Click the back/previous button 4 times to reach Step 1. Uses JS click directly."""
+        """Click the back/previous button 4 times to reach Step 1."""
         log.info("Navigating back to Step 1...")
         back_selectors = [
             ("css", "form.step-form button[matstepperprevious]"),
@@ -252,7 +275,6 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
         if not found_row:
             raise Exception(f"Company row not found: {company_name}")
 
-        # Try each edit button selector
         for sel in edit_selectors:
             try:
                 edit_btn = found_row.find_element(By.CSS_SELECTOR, sel)
@@ -266,7 +288,6 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
             except Exception:
                 continue
 
-        # Fallback: try any button with edit-related tooltip or icon text
         buttons = found_row.find_elements(By.CSS_SELECTOR, "button")
         for btn in buttons:
             try:
@@ -284,7 +305,6 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
             except Exception:
                 continue
 
-        # Last resort: log all buttons in row for debugging
         all_btns = found_row.find_elements(By.CSS_SELECTOR, "button")
         for i, btn in enumerate(all_btns):
             try:
@@ -299,48 +319,39 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
     # ================================================================
 
     def update_company(self, company_name, all_updates):
-        """
-        Complete update flow:
-        1. Navigate to page & search company
-        2. Click Edit to open dialog
-        3. Read all step values (for report)
-        4. Navigate back to Step 1
-        5. Apply updates step-by-step (1-5)
-        6. Submit
-
-        Returns dict with success, before values, company_name, message/error.
-        """
+        """Open edit, read before, apply updates, submit, read after."""
         before_values = {}
+        after_values = {}
         try:
-            # 1. Navigate & search
             self.navigate_to_page()
             self.wait_seconds(2)
             if not self.search_company(company_name):
                 return {"success": False, "error": f"Company not found: {company_name}"}
-
-            # 2. Open edit dialog
             self._click_edit_button(company_name)
             self.wait_seconds(2)
 
-            # 3. Read current values (for report)
-            log.info("Reading current values from all steps...")
+            log.info("Reading before-update values...")
             before_values = self.read_all_step_values()
 
-            # 4. Navigate back to Step 1
+            # --- FIX: Snapshot Step 1 before-values immediately after reading,
+            # before any workaround logic can overwrite them. ---
+            _step1_before_snapshot = {}
+            if "step1" in before_values:
+                b_row1 = before_values["step1"].get("1", before_values["step1"].get(1, {}))
+                if isinstance(b_row1, dict):
+                    _step1_before_snapshot = dict(b_row1)
+            log.info(f"  Step 1 before snapshot: {_step1_before_snapshot}")
+
             self._navigate_back_to_step1()
 
-            # 5. Apply updates step-by-step
             apply_map = {
-                1: self._apply_step1_updates,
-                2: self._apply_step2_updates,
-                3: self._apply_step3_updates,
-                4: self._apply_step4_updates,
+                1: self._apply_step1_updates, 2: self._apply_step2_updates,
+                3: self._apply_step3_updates, 4: self._apply_step4_updates,
                 5: self._apply_step5_updates,
             }
             for step_num in range(1, 6):
                 step_data = all_updates.get(step_num)
                 if not step_data:
-                    log.info(f"No updates for Step {step_num}, clicking Next")
                     if step_num < 5:
                         self._click_next()
                     continue
@@ -348,20 +359,55 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
                 if step_num < 5:
                     self._click_next()
 
-            # 6. Submit
             self.wait_seconds(1)
             self._force_close_panels()
             self.click(('xpath', "//div[@class='popup-footer']//button[contains(.,'Update')]"))
-
             msg = self.get_success_message(timeout=60)
             self.wait_seconds(3)
 
-            return {
-                "success": True,
-                "before": before_values,
-                "company_name": company_name,
-                "message": msg,
-            }
+            # Re-open edit to read after values
+            log.info("Re-opening edit to read after-update values...")
+            self.navigate_to_page()
+            self.wait_seconds(2)
+            if self.search_company(company_name):
+                self._click_edit_button(company_name)
+                self.wait_seconds(2)
+                after_values = self.read_all_step_values()
+                log.info("After-update values read")
+                try:
+                    self.click_cancel_or_dismiss_dialog()
+                except Exception:
+                    pass
+            else:
+                log.warning("Could not re-find company for after-read")
+
+            # --- FIX: Restore Step 1 before-values from snapshot,
+            # then inject typed values as after-values (DOM can't read them). ---
+            step1_updates = all_updates.get(1, {})
+
+            # Restore all Step 1 before-values from snapshot
+            if _step1_before_snapshot and "step1" in before_values:
+                b_row1 = before_values["step1"].get("1", before_values["step1"].get(1, {}))
+                if isinstance(b_row1, dict):
+                    for key, val in _step1_before_snapshot.items():
+                        b_row1[key] = val
+
+            # Set Step 1 after-values to the typed values (DOM won't return these)
+            if step1_updates and "step1" in after_values:
+                row1 = after_values["step1"].get("1", after_values["step1"].get(1, {}))
+                if isinstance(row1, dict):
+                    for key in ["contact_name", "email", "mobile_number"]:
+                        if step1_updates.get(key):
+                            row1[key] = str(step1_updates[key])
+
+            if msg and "Validation Failed" in str(msg):
+                log.warning(f"Server validation failed: {msg}")
+                return {"success": False, "error": f"Server validation failed: {msg}",
+                        "before": before_values, "after": {},
+                        "company_name": company_name, "message": msg}
+
+            return {"success": True, "before": before_values, "after": after_values,
+                    "company_name": company_name, "message": msg}
 
         except Exception as e:
             log.error(f"Company update failed: {company_name} - {e}")
@@ -369,9 +415,5 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
                 self.click_cancel_or_dismiss_dialog()
             except Exception:
                 pass
-            return {
-                "success": False,
-                "error": str(e),
-                "company_name": company_name,
-                "before": before_values,
-            }
+            return {"success": False, "error": str(e), "company_name": company_name,
+                    "before": before_values, "after": after_values}

@@ -10,6 +10,7 @@ Step order (matches actual app):
 """
 
 import pytest
+from datetime import datetime
 from pages.company_onboarding.Company_Onboarding.company_onboarding_page_update import CompanyOnboardingUpdatePage
 from pages.company_onboarding.data.company_onboarding_update_data import (
     UPDATE_COMPANY_NAME,
@@ -21,6 +22,7 @@ from pages.company_onboarding.data.company_onboarding_update_data import (
     STEP5_UPDATES,
 )
 from common.logger import log
+from pages.company_onboarding.test.update_results_store import co_update_results
 
 
 class TestCompanyOnboardingUpdate:
@@ -37,6 +39,18 @@ class TestCompanyOnboardingUpdate:
         update_page.wait_seconds(2)
 
         result = update_page.update_company(company_name, ALL_UPDATES)
+
+        # Store result for update report
+        co_update_results.append({
+            "company_name": company_name,
+            "status": "PASSED" if result["success"] else "FAILED",
+            "duration": 0,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "message": result.get("message", ""),
+            "before": result.get("before", {}),
+            "after": result.get("after", {}),
+            "updates_applied": ALL_UPDATES,
+        })
 
         assert result["success"], f"Update failed: {result.get('error', 'Unknown error')}"
 

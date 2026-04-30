@@ -14,6 +14,7 @@ from common.logger import log
 from common.browser_utils import get_driver
 from pages.login_screens.Login_Screens_.login_page import LoginPage
 from config import RHYTHMERP_LOGIN_URL, RHYTHMERP_EMAIL, RHYTHMERP_PASSWORD, RHYTHMERP_FACILITY
+from pages.company_onboarding.test.update_results_store import co_update_results
 
 # Test result storage (for screenshot capture only)
 co_test_results = []
@@ -68,31 +69,44 @@ def pytest_sessionfinish(session, exitstatus):
     """Generate appropriate Excel report based on test type."""
     try:
         if "update" in co_test_types and "creation" not in co_test_types:
-            log.info("Update tests ran - DataReport skipped (UpdateReport already generated)")
+            # Generate UPDATE report
+            if co_update_results:
+                from pages.company_onboarding.co_update_report_generator import generate_co_update_report
+                filepath = generate_co_update_report(co_update_results, CO_REPORT_DIR)
+                passed = sum(1 for r in co_update_results if r["status"] == "PASSED")
+                total = len(co_update_results)
+                log.separator()
+                log.info(f" COMPANY ONBOARDING UPDATE REPORT: {filepath}")
+                log.info(f" Updates: {total} | Passed: {passed}")
+                log.separator()
+                co_update_results.clear()
+            else:
+                log.info("No update results to report")
             return
-        from pages.company_onboarding.Company_Onboarding.company_onboarding_page import CO_SUBMISSIONS
-        from pages.company_onboarding.co_report_generator import generate_co_report
 
-        if CO_SUBMISSIONS:
-            companies = [s["data"] for s in CO_SUBMISSIONS]
-            results = [{
-                "status": s["status"],
-                "error": s.get("error", ""),
-                "duration": s["data"].get("_duration", 0),
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            } for s in CO_SUBMISSIONS]
+        if "creation" in co_test_types:
+            from pages.company_onboarding.Company_Onboarding.company_onboarding_page import CO_SUBMISSIONS
+            from pages.company_onboarding.co_report_generator import generate_co_report
 
-            filepath = generate_co_report(companies, results, CO_REPORT_DIR)
-            log.separator()
-            log.info(f" COMPANY ONBOARDING DATA REPORT: {filepath}")
-            log.info(f" Companies: {len(companies)} | Passed: {sum(1 for r in results if r['status'] == 'PASSED')}")
-            log.separator()
-            # Clear for next run
-            CO_SUBMISSIONS.clear()
-        else:
-            log.info("No company submissions to report")
+            if CO_SUBMISSIONS:
+                companies = [s["data"] for s in CO_SUBMISSIONS]
+                results = [{
+                    "status": s["status"],
+                    "error": s.get("error", ""),
+                    "duration": s["data"].get("_duration", 0),
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                } for s in CO_SUBMISSIONS]
+
+                filepath = generate_co_report(companies, results, CO_REPORT_DIR)
+                log.separator()
+                log.info(f" COMPANY ONBOARDING DATA REPORT: {filepath}")
+                log.info(f" Companies: {len(companies)} | Passed: {sum(1 for r in results if r['status'] == 'PASSED')}")
+                log.separator()
+                CO_SUBMISSIONS.clear()
+            else:
+                log.info("No company submissions to report")
     except Exception as e:
-        log.error(f"Failed to generate data report: {e}")
+        log.error(f"Failed to generate report: {e}")
 
 
 @pytest.fixture(scope="session")
@@ -141,7 +155,7 @@ def logged_in_driver(driver):
     login_page.wait_seconds(1)
 
     log.step(4, "Clicking Login button")
-    login_button = ("xpath", "//button[contains(.,\'Login\')]")
+    login_button = ("xpath", "//button[contains(.,'Login')]")
     login_page.click(login_button)
     login_page.wait_seconds(3)
 
