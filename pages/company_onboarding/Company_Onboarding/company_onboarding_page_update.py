@@ -1,4 +1,4 @@
-﻿"""
+"""
 Update page object for Company Onboarding.
 Inherits from CompanyOnboardingPage.
 
@@ -22,36 +22,18 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
     # ================================================================
 
     def _read_text_field(self, locator):
-        """Read the current value of a text input or textarea."""
+        """Read input value using pure JS document.querySelector.
+        Angular reactive forms: get_attribute('value') returns null,
+        but document.querySelector(...).value always works."""
         try:
-            el = self.driver.find_element(*locator)
-            self.driver.execute_script(
-                "arguments[0].focus(); arguments[0].dispatchEvent(new Event('input',{bubbles:true}));",
-                el
-            )
-            self.wait_seconds(0.15)
-            val = el.get_attribute("value")
-            if val and val.strip():
-                return val.strip()
-            val = el.get_attribute("ng-reflect-model")
-            if val and val.strip():
-                return val.strip()
-            val = el.get_attribute("ng-reflect-ng-model")
-            if val and val.strip():
-                return val.strip()
-            val = el.text
-            if val and val.strip():
-                return val.strip()
-            val = self.driver.execute_script(
-                "var e=arguments[0]; var p=e.closest('mat-form-field');"
-                "if(p){var i=p.querySelector('input,textarea');"
-                "if(i)return i.value||'';}"
-                "return e.value||'';",
-                el
-            )
-            if val and val.strip():
-                return val.strip()
-            return ""
+            if locator[0] == "css":
+                val = self.driver.execute_script(
+                    "return document.querySelector(arguments[0]).value", locator[1])
+                return (val or "").strip()
+            elif locator[0] == "xpath":
+                el = self.driver.find_element(*locator)
+                val = self.driver.execute_script("return arguments[0].value", el)
+                return (val or "").strip()
         except Exception:
             return ""
 
@@ -333,15 +315,6 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
             log.info("Reading before-update values...")
             before_values = self.read_all_step_values()
 
-            # --- FIX: Snapshot Step 1 before-values immediately after reading,
-            # before any workaround logic can overwrite them. ---
-            _step1_before_snapshot = {}
-            if "step1" in before_values:
-                b_row1 = before_values["step1"].get("1", before_values["step1"].get(1, {}))
-                if isinstance(b_row1, dict):
-                    _step1_before_snapshot = dict(b_row1)
-            log.info(f"  Step 1 before snapshot: {_step1_before_snapshot}")
-
             self._navigate_back_to_step1()
 
             apply_map = {
@@ -381,24 +354,7 @@ class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
             else:
                 log.warning("Could not re-find company for after-read")
 
-            # --- FIX: Restore Step 1 before-values from snapshot,
-            # then inject typed values as after-values (DOM can't read them). ---
-            step1_updates = all_updates.get(1, {})
 
-            # Restore all Step 1 before-values from snapshot
-            if _step1_before_snapshot and "step1" in before_values:
-                b_row1 = before_values["step1"].get("1", before_values["step1"].get(1, {}))
-                if isinstance(b_row1, dict):
-                    for key, val in _step1_before_snapshot.items():
-                        b_row1[key] = val
-
-            # Set Step 1 after-values to the typed values (DOM won't return these)
-            if step1_updates and "step1" in after_values:
-                row1 = after_values["step1"].get("1", after_values["step1"].get(1, {}))
-                if isinstance(row1, dict):
-                    for key in ["contact_name", "email", "mobile_number"]:
-                        if step1_updates.get(key):
-                            row1[key] = str(step1_updates[key])
 
             if msg and "Validation Failed" in str(msg):
                 log.warning(f"Server validation failed: {msg}")
