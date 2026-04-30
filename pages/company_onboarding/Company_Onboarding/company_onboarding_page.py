@@ -497,18 +497,23 @@ class CompanyOnboardingPage(BasePage):
 
 
     def search_company(self, company_name):
-        """Search for a company in the table. Returns True if found."""
+        """Search for a company in the table. Uses pure JS to avoid stale elements."""
         try:
             self._force_close_panels()
-            # Click search button
-            if self.is_displayed(self.SEARCH_BUTTON, timeout=5):
-                self.click(self.SEARCH_BUTTON)
-                self.wait_seconds(0.5)
-            # Type search term
-            if self.is_displayed(self.SEARCH_INPUT, timeout=5):
-                self.type_text(self.SEARCH_INPUT, company_name, clear_first=True)
-                self.wait_seconds(1)
-            # Check if company appears in table
+            self.wait_seconds(1)
+            self.driver.execute_script(
+                "var b=document.querySelector('button.search-btn');if(b)b.click();")
+            self.wait_seconds(1)
+            self.driver.execute_script(
+                "var i=document.querySelector('.erp-search-wrapper input');"
+                "if(i){var s=Object.getOwnPropertyDescriptor("
+                "window.HTMLInputElement.prototype,'value').set;"
+                "s.call(i,arguments[0]);"
+                "i.dispatchEvent(new Event('input',{bubbles:true}));"
+                "i.dispatchEvent(new KeyboardEvent('keydown',"
+                "{key:'Enter',keyCode:13,bubbles:true}));}",
+                company_name)
+            self.wait_seconds(2)
             rows = self.driver.find_elements(By.CSS_SELECTOR, 'td.cdk-column-name')
             for row in rows:
                 if company_name.strip().lower() in row.text.strip().lower():

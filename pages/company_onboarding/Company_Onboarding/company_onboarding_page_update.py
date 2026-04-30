@@ -1,347 +1,377 @@
-﻿"""
-company_onboarding_page_update.py
----------------------------------
-Page Object for UPDATE operations on Company Onboarding.
-Inherits from CompanyOnboardingPage (reuses all locators + helpers).
-Adds: edit, read, update, verify methods for the 5-step stepper.
+"""
+Update page object for Company Onboarding.
+Inherits from CompanyOnboardingPage.
+
+Step order (matches actual app):
+  Step 1 = Company Details
+  Step 2 = Promoters
+  Step 3 = Address
+  Step 4 = Business Details
+  Step 5 = Infrastructure
 """
 
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from common.logger import log
 from pages.company_onboarding.Company_Onboarding.company_onboarding_page import CompanyOnboardingPage
+from common.logger import log
 
 
 class CompanyOnboardingUpdatePage(CompanyOnboardingPage):
-    """Update-focused page object. Inherits locators + base methods from parent."""
-
-    # ---- SweetAlert ----
-    SWEETALERT_TITLE = ("css", "#swal2-title")
-    SWEETALERT_CONFIRM = ("css", ".swal2-confirm")
-
-    # ---- Buttons ----
-    UPDATE_BUTTON = ("xpath", "//div[@class='popup-footer']//button[contains(.,'Update')]")
 
     # ================================================================
-    # HELPERS
+    # READ helpers
     # ================================================================
-    def _find_company_row(self, company_name):
-        rows = self.driver.find_elements(By.CSS_SELECTOR, "mat-row")
-        for row in rows:
-            try:
-                cell = row.find_element(By.CSS_SELECTOR, "td.cdk-column-name")
-                if cell and company_name.strip().lower() in cell.text.strip().lower():
-                    return row
-            except Exception:
-                continue
-        return None
 
-    def _get_input_value(self, locator):
-        el = self.driver.find_element(*locator)
-        return el.get_attribute("value") or ""
-
-    # ================================================================
-    # TABLE OPERATIONS
-    # ================================================================
-    def click_edit_for_company(self, company_name):
-        log.info(f"Looking for Edit button for: {company_name}")
-        row = self._find_company_row(company_name)
-        if not row:
-            raise Exception(f"Company '{company_name}' not found in table")
+    def _read_text_field(self, locator):
+        """Read the current value of a text input or textarea."""
         try:
-            edit_btn = row.find_element(By.CSS_SELECTOR,
-                "button[mattooltip='EDIT'], button[mattooltip='Edit']")
-            self.driver.execute_script(
-                "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();",
-                edit_btn)
-            log.info(f"Clicked Edit for: {company_name}")
-            self.wait_seconds(1.5)
-        except Exception as e:
-            raise Exception(f"Could not click Edit for '{company_name}': {e}")
-
-    def read_table_row_values(self, company_name):
-        row = self._find_company_row(company_name)
-        if not row:
-            raise Exception(f"Company '{company_name}' not found in table")
-        cells = row.find_elements(By.CSS_SELECTOR, "td")
-        values = {}
-        for cell in cells:
-            try:
-                col = cell.get_attribute("class")
-                if col:
-                    for cls in col.split():
-                        if cls.startswith("cdk-column-"):
-                            values[cls] = cell.text.strip()
-            except Exception:
-                continue
-        return values
-
-    def click_update_button(self):
-        log.info("Clicking Update button...")
-        self._force_close_panels()
-        self.scroll_to_element(self.UPDATE_BUTTON)
-        self.wait_seconds(0.3)
-        self.click(self.UPDATE_BUTTON)
-        self.wait_seconds(2)
-
-    # ================================================================
-    # SWEETALERT
-    # ================================================================
-    def wait_for_update_success(self, timeout=30):
-        try:
-            wait = WebDriverWait(self.driver, timeout)
-            title_el = wait.until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, "#swal2-title")))
-            msg = title_el.text
-            log.info(f"SweetAlert appeared: {msg}")
-            try:
-                confirm = WebDriverWait(self.driver, 10).until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, ".swal2-confirm")))
-                confirm.click()
-                log.info("SweetAlert confirm clicked")
-            except Exception:
-                log.warning("Could not click confirm, waiting for auto-dismiss")
-                try:
-                    WebDriverWait(self.driver, 5).until(
-                        EC.invisibility_of_element_located(
-                            (By.CSS_SELECTOR, "#swal2-title")))
-                except Exception:
-                    pass
-            return msg
+            el = self.driver.find_element(*locator)
+            return (el.get_attribute("value") or el.text or "").strip()
         except Exception:
-            log.warning("No SweetAlert detected after Update")
             return ""
 
-    def wait_for_dialog_closed(self, timeout=15):
+    # ================================================================
+    # READ all step values (for report)
+    # ================================================================
+
+    def read_all_step_values(self):
+        """
+        Walk through all 5 steps reading current field values.
+        Returns dict: { step1: {...}, step2: {...}, ... }
+        """
+        values = {}
+
+        # Step 1: Company Details
         try:
-            WebDriverWait(self.driver, timeout).until_not(
-                EC.visibility_of_element_located(
-                    (By.CSS_SELECTOR, "mat-dialog-container")))
-            log.info("Dialog closed")
-            return True
-        except Exception:
-            log.warning("Dialog may still be open")
-            return False
+            values["step1"] = {
+                "contact_name":   self._read_text_field(self.CONTACT_NAME_INPUT),
+                "email":          self._read_text_field(self.EMAIL_INPUT),
+                "mobile_number":  self._read_text_field(self.MOBILE_NUMBER_INPUT),
+            }
+            log.info(f"  Read Step 1: {values['step1']}")
+        except Exception as e:
+            log.warning(f"Could not read Step 1: {e}")
+
+        # Step 2: Promoters
+        self._click_next()
+        self.wait_seconds(1)
+        try:
+            values["step2"] = {
+                "1": {
+                    "promoter_name":   self._read_text_field(("xpath", "(//app-dynamic-details//input[@name='Name'])[1]")),
+                    "promoter_remark": self._read_text_field(("xpath", "(//app-dynamic-details//textarea[@name='Remark'])[1]")),
+                }
+            }
+            log.info(f"  Read Step 2 (Promoters): {values['step2']}")
+        except Exception as e:
+            log.warning(f"Could not read Step 2: {e}")
+
+        # Step 3: Address
+        self._click_next()
+        self.wait_seconds(1)
+        try:
+            values["step3"] = {
+                "1": {
+                    "address":   self._read_text_field(("xpath", "(//app-dynamic-details//input[@name='Address'])[1]")),
+                    "pin_code":  self._read_text_field(("xpath", "(//app-dynamic-details//input[@name='Pin Code'])[1]")),
+                }
+            }
+            log.info(f"  Read Step 3 (Address): {values['step3']}")
+        except Exception as e:
+            log.warning(f"Could not read Step 3 (Address): {e}")
+
+        # Step 4: Business Details
+        self._click_next()
+        self.wait_seconds(1)
+        try:
+            values["step4"] = {
+                "1": {
+                    "business_model":   self._read_text_field(self._idx(self.BUSINESS_MODEL_INPUT, 1)),
+                    "market_linkages":  self._read_text_field(self._idx(self.MARKET_LINKAGES_INPUT, 1)),
+                }
+            }
+            log.info(f"  Read Step 4 (Business): {values['step4']}")
+        except Exception as e:
+            log.warning(f"Could not read Step 4 (Business): {e}")
+
+        # Step 5: Infrastructure
+        self._click_next()
+        self.wait_seconds(1)
+        try:
+            values["step5"] = {
+                "1": {
+                    "infra_location": self._read_text_field(self._idx(self.INFRA_LOCATION_INPUT, 1)),
+                }
+            }
+            log.info(f"  Read Step 5 (Infrastructure): {values['step5']}")
+        except Exception as e:
+            log.warning(f"Could not read Step 5 (Infrastructure): {e}")
+
+        return values
 
     # ================================================================
-    # STEP 1 — Company Details
+    # NAVIGATE back to Step 1
     # ================================================================
-    def read_step1_values(self):
-        values = {}
-        for key, loc in [
-            ("company_name", self.COMPANY_NAME_INPUT),
-            ("company_short_name", self.COMPANY_SHORT_NAME_INPUT),
-            ("contact_name", self.CONTACT_NAME_INPUT),
-            ("email", self.EMAIL_INPUT),
-            ("mobile_number", self.MOBILE_NUMBER_INPUT),
-            ("pan", self.PAN_INPUT),
-            ("gstin", self.GSTIN_INPUT),
-            ("cin", self.CIN_INPUT),
-        ]:
+
+    def _navigate_back_to_step1(self):
+        """Click the back/previous button 4 times to reach Step 1. Uses JS click directly."""
+        log.info("Navigating back to Step 1...")
+        back_selectors = [
+            ("css", "form.step-form button[matstepperprevious]"),
+            ("css", "button[matstepperprevious]"),
+            ("xpath", "//button[@matstepperprevious or @matStepperPrevious]"),
+        ]
+        for i in range(4):
+            clicked = False
+            for strategy, path in back_selectors:
+                try:
+                    btns = self.driver.find_elements(strategy, path)
+                    for btn in btns:
+                        try:
+                            self.driver.execute_script(
+                                "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();",
+                                btn,
+                            )
+                            log.info(f"  Clicked back button ({i + 1}/4) via {strategy}: {path}")
+                            self.wait_seconds(1)
+                            clicked = True
+                            break
+                        except Exception:
+                            continue
+                    if clicked:
+                        break
+                except Exception:
+                    continue
+            if not clicked:
+                log.info(f"  No back button found at {i + 1}, stopping")
+                break
+        self.wait_seconds(1)
+        log.info("Navigation back complete")
+
+    # ================================================================
+    # APPLY step updates
+    # ================================================================
+
+    def _apply_step1_updates(self, updates):
+        """Step 1 = Company Details."""
+        field_map = {
+            "contact_name":  self.CONTACT_NAME_INPUT,
+            "email":         self.EMAIL_INPUT,
+            "mobile_number": self.MOBILE_NUMBER_INPUT,
+        }
+        log.info(f"Applying Step 1 updates: {list(updates.keys())}")
+        for key, value in updates.items():
+            if key in field_map and value:
+                self.type_text(field_map[key], str(value), clear_first=True)
+                log.info(f"  Updated '{key}' = '{value}'")
+
+    def _apply_step2_updates(self, updates):
+        """Step 2 = Promoters."""
+        for row_idx, row_data in updates.items():
+            log.info(f"Applying Step 2 row {row_idx} updates: {list(row_data.keys())}")
+            if row_data.get("promoter_name"):
+                loc = ("xpath", f"(//app-dynamic-details//input[@name='Name'])[{row_idx}]")
+                self.type_text(loc, str(row_data["promoter_name"]), clear_first=True)
+                log.info(f"  Updated promoter_name = '{row_data['promoter_name']}'")
+            if row_data.get("promoter_remark"):
+                loc = ("xpath", f"(//app-dynamic-details//textarea[@name='Remark'])[{row_idx}]")
+                self.type_text(loc, str(row_data["promoter_remark"]), clear_first=True)
+                log.info(f"  Updated promoter_remark = '{row_data['promoter_remark']}'")
+
+    def _apply_step3_updates(self, updates):
+        """Step 3 = Address."""
+        for row_idx, row_data in updates.items():
+            log.info(f"Applying Step 3 row {row_idx} updates (Address): {list(row_data.keys())}")
+            if row_data.get("address"):
+                loc = ("xpath", f"(//app-dynamic-details//input[@name='Address'])[{row_idx}]")
+                self.type_text(loc, str(row_data["address"]), clear_first=True)
+                log.info(f"  Updated address = '{row_data['address']}'")
+            if row_data.get("pin_code"):
+                loc = ("xpath", f"(//app-dynamic-details//input[@name='Pin Code'])[{row_idx}]")
+                self.type_text(loc, str(row_data["pin_code"]), clear_first=True)
+                log.info(f"  Updated pin_code = '{row_data['pin_code']}'")
+
+    def _apply_step4_updates(self, updates):
+        """Step 4 = Business Details."""
+        for row_idx, row_data in updates.items():
+            log.info(f"Applying Step 4 row {row_idx} updates (Business): {list(row_data.keys())}")
+            if row_data.get("business_model"):
+                loc = self._idx(self.BUSINESS_MODEL_INPUT, row_idx)
+                self.type_text(loc, str(row_data["business_model"]), clear_first=True)
+                log.info(f"  Updated business_model = '{row_data['business_model']}'")
+            if row_data.get("market_linkages"):
+                loc = self._idx(self.MARKET_LINKAGES_INPUT, row_idx)
+                self.type_text(loc, str(row_data["market_linkages"]), clear_first=True)
+                log.info(f"  Updated market_linkages = '{row_data['market_linkages']}'")
+
+    def _apply_step5_updates(self, updates):
+        """Step 5 = Infrastructure."""
+        for row_idx, row_data in updates.items():
+            log.info(f"Applying Step 5 row {row_idx} updates (Infrastructure): {list(row_data.keys())}")
+            if row_data.get("infra_location"):
+                loc = self._idx(self.INFRA_LOCATION_INPUT, row_idx)
+                self.type_text(loc, str(row_data["infra_location"]), clear_first=True)
+                log.info(f"  Updated infra_location = '{row_data['infra_location']}'")
+
+    # ================================================================
+    # Click Edit button for a company row
+    # ================================================================
+
+    def _click_edit_button(self, company_name):
+        """Click the Edit button for the matching company row."""
+        edit_selectors = [
+            "button[mattooltip='EDIT']",
+            "button[mattooltip='Edit']",
+            "div[mattooltip='EDIT'] button",
+            "div[mattooltip='Edit'] button",
+        ]
+        row_selectors = [
+            "tr.mat-mdc-row",
+            "tr.mat-row",
+            "table tbody tr",
+        ]
+        found_row = None
+        for row_sel in row_selectors:
+            rows = self.driver.find_elements(By.CSS_SELECTOR, row_sel)
+            log.info(f"  Row selector '{row_sel}' found {len(rows)} rows")
+            for row in rows:
+                try:
+                    cells = row.find_elements(By.CSS_SELECTOR, "td")
+                    for cell in cells:
+                        cell_text = (cell.text or "").strip()
+                        if company_name.strip().lower() in cell_text.lower():
+                            found_row = row
+                            log.info(f"  Found company in cell: '{cell_text}'")
+                            break
+                    if found_row:
+                        break
+                except Exception:
+                    continue
+            if found_row:
+                break
+
+        if not found_row:
+            raise Exception(f"Company row not found: {company_name}")
+
+        # Try each edit button selector
+        for sel in edit_selectors:
             try:
-                values[key] = self._get_input_value(loc)
+                edit_btn = found_row.find_element(By.CSS_SELECTOR, sel)
+                self.driver.execute_script(
+                    "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();",
+                    edit_btn,
+                )
+                log.info(f"Clicked Edit ({sel}) for: {company_name}")
+                self.wait_seconds(2)
+                return
+            except Exception:
+                continue
+
+        # Fallback: try any button with edit-related tooltip or icon text
+        buttons = found_row.find_elements(By.CSS_SELECTOR, "button")
+        for btn in buttons:
+            try:
+                if btn.is_displayed() and btn.is_enabled():
+                    tooltip = btn.get_attribute("mattooltip") or btn.get_attribute("aria-label") or ""
+                    icon_text = (btn.text or "").strip().lower()
+                    if "edit" in tooltip.lower() or "edit" in icon_text:
+                        self.driver.execute_script(
+                            "arguments[0].scrollIntoView({block:'center'}); arguments[0].click();",
+                            btn,
+                        )
+                        log.info(f"Clicked Edit (fallback) for: {company_name}")
+                        self.wait_seconds(2)
+                        return
+            except Exception:
+                continue
+
+        # Last resort: log all buttons in row for debugging
+        all_btns = found_row.find_elements(By.CSS_SELECTOR, "button")
+        for i, btn in enumerate(all_btns):
+            try:
+                tt = btn.get_attribute("mattooltip") or btn.get_attribute("aria-label") or ""
+                log.info(f"  Row button {i}: tooltip='{tt}' text='{btn.text}' classes='{btn.get_attribute('class')}'")
             except Exception:
                 pass
-        log.info(f"Step 1 read: {list(values.keys())}")
-        return values
-
-    def apply_step1_updates(self, updates):
-        log.info(f"Applying Step 1 updates: {list(updates.keys())}")
-        field_map = {
-            "contact_name": self.CONTACT_NAME_INPUT,
-            "email": self.EMAIL_INPUT,
-            "mobile_number": self.MOBILE_NUMBER_INPUT,
-            "company_short_name": self.COMPANY_SHORT_NAME_INPUT,
-            "company_background": self.COMPANY_BACKGROUND_INPUT,
-            "pan": self.PAN_INPUT,
-            "gstin": self.GSTIN_INPUT,
-            "cin": self.CIN_INPUT,
-        }
-        for key, locator in field_map.items():
-            if key in updates and updates[key]:
-                self.type_text(locator, str(updates[key]), clear_first=True)
+        raise Exception(f"Edit button not found for: {company_name}")
 
     # ================================================================
-    # STEP 2 — Promoters
+    # Main: update_company
     # ================================================================
-    def read_step2_values(self, row_index=1):
-        values = {}
-        try:
-            loc = ("xpath", f"(//app-dynamic-details//input[@name='Name'])[{row_index}]")
-            values["promoter_name"] = self._get_input_value(loc)
-        except Exception:
-            pass
-        try:
-            loc = ("xpath", f"(//app-dynamic-details//textarea[@name='Remark'])[{row_index}]")
-            values["promoter_remark"] = self._get_input_value(loc)
-        except Exception:
-            pass
-        log.info(f"Step 2 read: {list(values.keys())}")
-        return values
 
-    def apply_step2_updates(self, updates, row_index=1):
-        log.info(f"Applying Step 2 updates: {list(updates.keys())}")
-        if updates.get("promoter_name"):
-            loc = ("xpath", f"(//app-dynamic-details//input[@name='Name'])[{row_index}]")
-            self.type_text(loc, updates["promoter_name"], clear_first=True)
-        if updates.get("promoter_remark"):
-            loc = ("xpath", f"(//app-dynamic-details//textarea[@name='Remark'])[{row_index}]")
-            self.type_text(loc, updates["promoter_remark"], clear_first=True)
-
-    # ================================================================
-    # STEP 3 — Address
-    # ================================================================
-    def read_step3_values(self, row_index=1):
-        values = {}
-        try:
-            values["address"] = self._get_input_value(
-                self._idx(self.ADDRESS_INPUT, row_index))
-        except Exception:
-            pass
-        try:
-            values["pin_code"] = self._get_input_value(
-                self._idx(self.PIN_CODE_INPUT, row_index))
-        except Exception:
-            pass
-        log.info(f"Step 3 read: {list(values.keys())}")
-        return values
-
-    def apply_step3_updates(self, updates, row_index=1):
-        log.info(f"Applying Step 3 updates: {list(updates.keys())}")
-        if updates.get("address"):
-            self.type_text(self._idx(self.ADDRESS_INPUT, row_index),
-                          updates["address"], clear_first=True)
-        if updates.get("pin_code"):
-            self.type_text(self._idx(self.PIN_CODE_INPUT, row_index),
-                          updates["pin_code"], clear_first=True)
-
-    # ================================================================
-    # STEP 4 — Business Details
-    # ================================================================
-    def read_step4_values(self, row_index=1):
-        values = {}
-        try:
-            values["business_model"] = self._get_input_value(
-                self._idx(self.BUSINESS_MODEL_INPUT, row_index))
-        except Exception:
-            pass
-        try:
-            values["market_linkages"] = self._get_input_value(
-                self._idx(self.MARKET_LINKAGES_INPUT, row_index))
-        except Exception:
-            pass
-        log.info(f"Step 4 read: {list(values.keys())}")
-        return values
-
-    def apply_step4_updates(self, updates, row_index=1):
-        log.info(f"Applying Step 4 updates: {list(updates.keys())}")
-        if updates.get("business_model"):
-            self.type_text(self._idx(self.BUSINESS_MODEL_INPUT, row_index),
-                          updates["business_model"], clear_first=True)
-        if updates.get("market_linkages"):
-            self.type_text(self._idx(self.MARKET_LINKAGES_INPUT, row_index),
-                          updates["market_linkages"], clear_first=True)
-
-    # ================================================================
-    # STEP 5 — Infrastructure
-    # ================================================================
-    def read_step5_values(self, row_index=1):
-        values = {}
-        try:
-            values["infra_location"] = self._get_input_value(
-                self._idx(self.INFRA_LOCATION_INPUT, row_index))
-        except Exception:
-            pass
-        log.info(f"Step 5 read: {list(values.keys())}")
-        return values
-
-    def apply_step5_updates(self, updates, row_index=1):
-        log.info(f"Applying Step 5 updates: {list(updates.keys())}")
-        if updates.get("infra_location"):
-            self.type_text(self._idx(self.INFRA_LOCATION_INPUT, row_index),
-                          updates["infra_location"], clear_first=True)
-
-    # ================================================================
-    # ONE-CALL: update_company()
-    # ================================================================
     def update_company(self, company_name, all_updates):
-        log.info(f"Starting one-call update for: {company_name}")
+        """
+        Complete update flow:
+        1. Navigate to page & search company
+        2. Click Edit to open dialog
+        3. Read all step values (for report)
+        4. Navigate back to Step 1
+        5. Apply updates step-by-step (1-5)
+        6. Submit
+
+        Returns dict with success, before values, company_name, message/error.
+        """
         before_values = {}
-        after_values = {}
         try:
-            self.click_edit_for_company(company_name)
-            self.wait_seconds(1)
+            # 1. Navigate & search
+            self.navigate_to_page()
+            self.wait_seconds(2)
+            if not self.search_company(company_name):
+                return {"success": False, "error": f"Company not found: {company_name}"}
+
+            # 2. Open edit dialog
+            self._click_edit_button(company_name)
+            self.wait_seconds(2)
+
+            # 3. Read current values (for report)
+            log.info("Reading current values from all steps...")
             before_values = self.read_all_step_values()
-            log.info(f"BEFORE: {list(before_values.keys())}")
 
-            if 1 in all_updates:
-                self.apply_step1_updates(all_updates[1])
-            self._click_next(); self.wait_seconds(1)
-            if 2 in all_updates:
-                self.apply_step2_updates(all_updates[2], row_index=1)
-            self._click_next(); self.wait_seconds(1)
-            if 3 in all_updates:
-                self.apply_step3_updates(all_updates[3], row_index=1)
-            self._click_next(); self.wait_seconds(1)
-            if 4 in all_updates:
-                self.apply_step4_updates(all_updates[4], row_index=1)
-            self._click_next(); self.wait_seconds(1)
-            if 5 in all_updates:
-                self.apply_step5_updates(all_updates[5], row_index=1)
+            # 4. Navigate back to Step 1
+            self._navigate_back_to_step1()
 
-            self.click_update_button()
-            self.wait_for_update_success(timeout=30)
-            self.wait_for_dialog_closed(timeout=15)
+            # 5. Apply updates step-by-step
+            apply_map = {
+                1: self._apply_step1_updates,
+                2: self._apply_step2_updates,
+                3: self._apply_step3_updates,
+                4: self._apply_step4_updates,
+                5: self._apply_step5_updates,
+            }
+            for step_num in range(1, 6):
+                step_data = all_updates.get(step_num)
+                if not step_data:
+                    log.info(f"No updates for Step {step_num}, clicking Next")
+                    if step_num < 5:
+                        self._click_next()
+                    continue
+                apply_map[step_num](step_data)
+                if step_num < 5:
+                    self._click_next()
 
-            self.click_refresh(); self.wait_seconds(2)
-            self.click_edit_for_company(company_name)
+            # 6. Submit
             self.wait_seconds(1)
-            after_values = self.read_all_step_values()
-            log.info(f"AFTER: {list(after_values.keys())}")
+            self._force_close_panels()
+            self.click(('xpath', "//div[@class='popup-footer']//button[contains(.,'Update')]"))
 
-            self.click_cancel_or_dismiss_dialog()
-            self.wait_seconds(1)
+            msg = self.get_success_message(timeout=60)
+            self.wait_seconds(3)
 
-            return {"success": True, "before_values": before_values,
-                    "after_values": after_values, "error": ""}
+            return {
+                "success": True,
+                "before": before_values,
+                "company_name": company_name,
+                "message": msg,
+            }
+
         except Exception as e:
-            log.error(f"Update failed: {e}")
-            return {"success": False, "before_values": before_values,
-                    "after_values": after_values, "error": str(e)}
-
-    # ================================================================
-    # READ ALL STEPS
-    # ================================================================
-    def read_all_step_values(self):
-        all_vals = {}
-        all_vals[1] = self.read_step1_values()
-        self._click_next(); self.wait_seconds(1)
-        all_vals[2] = self.read_step2_values(row_index=1)
-        self._click_next(); self.wait_seconds(1)
-        all_vals[3] = self.read_step3_values(row_index=1)
-        self._click_next(); self.wait_seconds(1)
-        all_vals[4] = self.read_step4_values(row_index=1)
-        self._click_next(); self.wait_seconds(1)
-        all_vals[5] = self.read_step5_values(row_index=1)
-        return all_vals
-
-    # ================================================================
-    # VERIFY
-    # ================================================================
-    def verify_updated_fields(self, after_values, expected_updates):
-        mismatches = []
-        for step_num, updates in expected_updates.items():
-            if step_num not in after_values:
-                mismatches.append(f"Step {step_num}: no after_values")
-                continue
-            for field, expected in updates.items():
-                actual = after_values[step_num].get(field, "")
-                if actual != expected:
-                    mismatches.append(
-                        f"Step {step_num}/{field}: expected '{expected}', got '{actual}'")
-        if mismatches:
-            log.warning(f"Mismatches: {mismatches}")
-        else:
-            log.info("All fields match!")
-        return mismatches
+            log.error(f"Company update failed: {company_name} - {e}")
+            try:
+                self.click_cancel_or_dismiss_dialog()
+            except Exception:
+                pass
+            return {
+                "success": False,
+                "error": str(e),
+                "company_name": company_name,
+                "before": before_values,
+            }
