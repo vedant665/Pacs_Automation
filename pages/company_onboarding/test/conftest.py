@@ -1,4 +1,4 @@
-"""
+﻿"""
 conftest.py - Company Onboarding (RhythmERP)
 """
 
@@ -15,6 +15,7 @@ from common.browser_utils import get_driver
 from pages.login_screens.Login_Screens_.login_page import LoginPage
 from config import RHYTHMERP_LOGIN_URL, RHYTHMERP_EMAIL, RHYTHMERP_PASSWORD, RHYTHMERP_FACILITY
 from pages.company_onboarding.test.update_results_store import co_update_results
+from pages.company_onboarding.test.update_validation_results_store import update_validation_results
 
 # Test result storage (for screenshot capture only)
 co_test_results = []
@@ -69,7 +70,7 @@ def pytest_sessionfinish(session, exitstatus):
     """Generate appropriate Excel report based on test type."""
     try:
         if "update" in co_test_types and "creation" not in co_test_types:
-            # Generate UPDATE report
+            # Generate UPDATE field verification report
             if co_update_results:
                 from pages.company_onboarding.co_update_report_generator import generate_co_update_report
                 filepath = generate_co_update_report(co_update_results, CO_REPORT_DIR)
@@ -80,6 +81,17 @@ def pytest_sessionfinish(session, exitstatus):
                 log.info(f" Updates: {total} | Passed: {passed}")
                 log.separator()
                 co_update_results.clear()
+            # Generate UPDATE VALIDATION report (separate from field verification)
+            elif update_validation_results:
+                from pages.company_onboarding.test.update_validation_report_generator import generate_update_validation_report
+                filepath = generate_update_validation_report(update_validation_results, CO_REPORT_DIR)
+                passed = sum(1 for r in update_validation_results if r["status"] == "PASSED")
+                total = len(update_validation_results)
+                log.separator()
+                log.info(f" UPDATE VALIDATION REPORT: {filepath}")
+                log.info(f" Checks: {total} | Passed: {passed}")
+                log.separator()
+                update_validation_results.clear()
             else:
                 log.info("No update results to report")
             return
