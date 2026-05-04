@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ReportsTable } from "@/components/reports-table";
 import { Separator } from "@/components/ui/separator";
 interface Stats { total: number; passed: number; failed: number; running: number; avg_duration: number; pass_rate: number; }
 interface TestRun { id: number; test_type: string; status: string; duration_seconds: number | null; started_at: string; finished_at: string | null; }
@@ -161,40 +162,8 @@ export function DashboardView({ onSignOut }: DashboardViewProps) {
           </Card>
         </motion.div>
         <motion.div {...fadeInUp} transition={{ duration: 0.4, delay: 0.44 }}>
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Latest Reports</h2>
-            <p className="text-sm text-muted-foreground">Generated test execution reports</p>
-          </div>
-          {reports.length === 0 ? (
-            <Card><CardContent className="py-8 text-center text-muted-foreground">No reports generated yet.</CardContent></Card>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {reports.slice(0, 10).map((rp) => {
-                const Icon = rp.type === "Update" ? FileSpreadsheet : rp.filename.includes("Bulk") ? BarChart3 : FileText;
-                return (
-                  <motion.div key={rp.filename} variants={fadeInUp}>
-                    <Card className="hover:shadow-md transition-shadow duration-200">
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center"><Icon className="size-5 text-primary" /></div>
-                            <div>
-                              <h3 className="text-sm font-semibold text-foreground">{rp.filename}</h3>
-                              <p className="text-xs text-muted-foreground">{rp.type} · {fmtSize(rp.size)}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                          <span className="text-xs text-muted-foreground">{fmtDate(new Date(rp.modified * 1000).toISOString())}</span>
-                          <a href={"/api/reports/" + encodeURIComponent(rp.filename)} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"><Download className="size-3.5" />Download</a>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
+          <ReportsTable reports={reports} />
+
         </motion.div>
       </main>
       <motion.footer initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.5 }} className="border-t bg-background mt-auto">
